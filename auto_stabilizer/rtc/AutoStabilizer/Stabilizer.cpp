@@ -343,6 +343,15 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, const std::ve
       }
     }
   }
+
+  for(int i=NUM_LEGS;i<NUM_LEGS+2;i++){
+    cnoid::JointPath jointPath(actRobotTqc->link("CHEST_JOINT2"), actRobotTqc->link(gaitParam.eeParentLink[i]));
+    for(int j=0;j<jointPath.numJoints();j++){
+          if(o_stServoPGainPercentage[jointPath.joint(j)->jointId()].getGoal() != 0.5) o_stServoPGainPercentage[jointPath.joint(j)->jointId()].setGoal(0.5, 3.0);
+          if(o_stServoDGainPercentage[jointPath.joint(j)->jointId()].getGoal() != 0.5) o_stServoDGainPercentage[jointPath.joint(j)->jointId()].setGoal(0.5, 3.0);
+        }
+  }
+  
   for(int i=0;i<gaitParam.genRobot->numJoints();i++){
     o_stServoPGainPercentage[i].interpolate(dt);
     o_stServoDGainPercentage[i].interpolate(dt);
