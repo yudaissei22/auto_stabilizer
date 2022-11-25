@@ -346,7 +346,7 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, const std::ve
 
   for(int i=NUM_LEGS;i<NUM_LEGS+2;i++){
     cnoid::JointPath jointPath(actRobotTqc->link("CHEST_JOINT2"), actRobotTqc->link(gaitParam.eeParentLink[i]));
-    double arm_gain = 0.1;
+    double arm_gain = 0.0;
     for(int j=0;j<jointPath.numJoints();j++){
           if(o_stServoPGainPercentage[jointPath.joint(j)->jointId()].getGoal() != arm_gain) o_stServoPGainPercentage[jointPath.joint(j)->jointId()].setGoal(arm_gain, 3.0);
           if(o_stServoDGainPercentage[jointPath.joint(j)->jointId()].getGoal() != arm_gain) o_stServoDGainPercentage[jointPath.joint(j)->jointId()].setGoal(arm_gain, 3.0);
