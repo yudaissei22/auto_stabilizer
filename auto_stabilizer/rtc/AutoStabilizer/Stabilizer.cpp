@@ -16,7 +16,7 @@ void Stabilizer::initStabilizerOutput(const GaitParam& gaitParam,
 }
 
 bool Stabilizer::execStabilizer(const GaitParam& gaitParam, double dt, bool useActState,
-                                cnoid::BodyPtr& actRobotTqc, cpp_filters::TwoPointInterpolator<cnoid::Vector3>& o_stOffsetRootRpy, cnoid::Position& o_stTargetRootPose, cnoid::Vector3& o_stTargetZmp, std::vector<cnoid::Vector6>& o_stEETargetWrench, std::vector<cpp_filters::TwoPointInterpolator<double> >& o_stServoPGainPercentage, std::vector<cpp_filters::TwoPointInterpolator<double> >& o_stServoDGainPercentage) const{
+                                cpp_filters::TwoPointInterpolator<cnoid::Vector3>& o_stOffsetRootRpy, cnoid::Position& o_stTargetRootPose, cnoid::Vector3& o_stTargetZmp, std::vector<cnoid::Vector6>& o_stEETargetWrench) const{
   // - root attitude control
   // - 現在のactual重心位置から、目標ZMPを計算
   // - 目標ZMPを満たすように目標足裏反力を計算
@@ -37,18 +37,6 @@ bool Stabilizer::execStabilizer(const GaitParam& gaitParam, double dt, bool useA
   // 目標ZMPを満たすように目標EndEffector反力を計算
   this->calcWrench(gaitParam, o_stTargetZmp, tgtForce, useActState,// input
                    o_stEETargetWrench); // output
-
-  if(useActState){
-    // 目標反力を満たすように重力補償+仮想仕事の原理
-    this->calcTorque(dt, gaitParam, o_stEETargetWrench, // input
-                     actRobotTqc, o_stServoPGainPercentage, o_stServoDGainPercentage); // output
-  }else{
-    for(int i=0;i<actRobotTqc->numJoints();i++) actRobotTqc->joint(i)->u() = 0.0;
-    for(int i=0;i<actRobotTqc->numJoints();i++){
-      o_stServoPGainPercentage[i].interpolate(dt);
-      o_stServoDGainPercentage[i].interpolate(dt);
-    }
-  }
 
   return true;
 }
@@ -284,8 +272,17 @@ bool Stabilizer::calcWrench(const GaitParam& gaitParam, const cnoid::Vector3& tg
   return true;
 }
 
-bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, const std::vector<cnoid::Vector6>& tgtEEWrench /* 要素数EndEffector数. generate座標系. EndEffector origin*/,
-                            cnoid::BodyPtr& actRobotTqc, std::vector<cpp_filters::TwoPointInterpolator<double> >& o_stServoPGainPercentage, std::vector<cpp_filters::TwoPointInterpolator<double> >& o_stServoDGainPercentage) const{
+bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActState, cnoid::BodyPtr& actRobotTqc, const std::vector<cnoid::Vector6>& tgtEEWrench /* 要素数EndEffector数. generate座標系. EndEffector origin*/,
+                            std::vector<cpp_filters::TwoPointInterpolator<double> >& o_stServoPGainPercentage, std::vector<cpp_filters::TwoPointInterpolator<double> >& o_stServoDGainPercentage) const{
+
+  if(!useActState){
+    for(int i=0;i<actRobotTqc->numJoints();i++) actRobotTqc->joint(i)->u() = 0.0;
+    for(int i=0;i<actRobotTqc->numJoints();i++){
+      o_stServoPGainPercentage[i].interpolate(dt);
+      o_stServoDGainPercentage[i].interpolate(dt);
+    }
+    return false;
+  }
   // 速度・加速度を考慮しない重力補償
   actRobotTqc->rootLink()->T() = gaitParam.actRobot->rootLink()->T();
   actRobotTqc->rootLink()->v() = cnoid::Vector3::Zero();
