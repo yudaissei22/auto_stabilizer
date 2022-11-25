@@ -273,7 +273,7 @@ bool Stabilizer::calcWrench(const GaitParam& gaitParam, const cnoid::Vector3& tg
 }
 
 bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActState, cnoid::BodyPtr& actRobotTqc, const std::vector<cnoid::Vector6>& tgtEEWrench /* 要素数EndEffector数. generate座標系. EndEffector origin*/,
-                            std::vector<cpp_filters::TwoPointInterpolator<double> >& o_stServoPGainPercentage, std::vector<cpp_filters::TwoPointInterpolator<double> >& o_stServoDGainPercentage) const{
+                            std::vector<cpp_filters::TwoPointInterpolator<double> >& o_stServoPGainPercentage, std::vector<cpp_filters::TwoPointInterpolator<double> >& o_stServoDGainPercentage, Eigen::VectorXd& prev_q, Eigen::VectorXd& prev_dq) const{
 
   if(!useActState){
     for(int i=0;i<actRobotTqc->numJoints();i++) actRobotTqc->joint(i)->u() = 0.0;
@@ -281,80 +281,101 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
       o_stServoPGainPercentage[i].interpolate(dt);
       o_stServoDGainPercentage[i].interpolate(dt);
     }
-    return false;
-  }
-  // 速度・加速度を考慮しない重力補償
-  actRobotTqc->rootLink()->T() = gaitParam.actRobot->rootLink()->T();
-  actRobotTqc->rootLink()->v() = cnoid::Vector3::Zero();
-  actRobotTqc->rootLink()->w() = cnoid::Vector3::Zero();
-  actRobotTqc->rootLink()->dv() = cnoid::Vector3(0.0,0.0,gaitParam.g);
-  actRobotTqc->rootLink()->dw() = cnoid::Vector3::Zero();
-  for(int i=0;i<actRobotTqc->numJoints();i++){
-    actRobotTqc->joint(i)->q() = gaitParam.actRobot->joint(i)->q();
-    actRobotTqc->joint(i)->dq() = 0.0;
-    actRobotTqc->joint(i)->ddq() = 0.0;
-  }
-  actRobotTqc->calcForwardKinematics(true, true);
-  cnoid::calcInverseDynamics(actRobotTqc->rootLink()); // actRobotTqc->joint()->u()に書き込まれる
+  } else {
+    cnoid::VectorX tau_g = cnoid::VectorXd::Zero(actRobotTqc->numJoints()); // 重力
 
-  // tgtEEWrench
-  for(int i=0;i<gaitParam.eeName.size();i++){
-    cnoid::JointPath jointPath(actRobotTqc->rootLink(), actRobotTqc->link(gaitParam.eeParentLink[i]));
-    cnoid::MatrixXd J = cnoid::MatrixXd::Zero(6,jointPath.numJoints()); // generate frame. endeffector origin
-    cnoid::setJacobian<0x3f,0,0,true>(jointPath,actRobotTqc->link(gaitParam.eeParentLink[i]),gaitParam.eeLocalT[i].translation(), // input
-                                      J); // output
-    cnoid::VectorX tau = - J.transpose() * tgtEEWrench[i];
-    for(int j=0;j<jointPath.numJoints();j++){
-      jointPath.joint(j)->u() += tau[j];
-    }
-  }
-
-  // Gain
-  for(int i=0;i<NUM_LEGS;i++){
-    cnoid::JointPath jointPath(actRobotTqc->rootLink(), actRobotTqc->link(gaitParam.eeParentLink[i]));
-    if(gaitParam.isManualControlMode[i].getGoal() == 0.0) { // Manual Control off
-      if(gaitParam.footstepNodesList[0].isSupportPhase[i]){
-        double transitionTime = std::max(this->landing2SupportTransitionTime, dt*2); // 現状, setGoal(*,dt)以下の時間でgoal指定するとwriteOutPortDataが破綻するのでテンポラリ
-        for(int j=0;j<jointPath.numJoints();j++){
-          if(o_stServoPGainPercentage[jointPath.joint(j)->jointId()].getGoal() != this->supportPgain[i][j]) o_stServoPGainPercentage[jointPath.joint(j)->jointId()].setGoal(this->supportPgain[i][j], transitionTime);
-          if(o_stServoDGainPercentage[jointPath.joint(j)->jointId()].getGoal() != this->supportDgain[i][j]) o_stServoDGainPercentage[jointPath.joint(j)->jointId()].setGoal(this->supportDgain[i][j], transitionTime);
-        }
-      }else if(gaitParam.swingState[i] == GaitParam::DOWN_PHASE) {
-        double transitionTime = std::max(this->swing2LandingTransitionTime, dt*2); // 現状, setGoal(*,dt)以下の時間でgoal指定するとwriteOutPortDataが破綻するのでテンポラリ
-        for(int j=0;j<jointPath.numJoints();j++){
-          if(o_stServoPGainPercentage[jointPath.joint(j)->jointId()].getGoal() != this->landingPgain[i][j]) o_stServoPGainPercentage[jointPath.joint(j)->jointId()].setGoal(this->landingPgain[i][j], transitionTime);
-          if(o_stServoDGainPercentage[jointPath.joint(j)->jointId()].getGoal() != this->landingDgain[i][j]) o_stServoDGainPercentage[jointPath.joint(j)->jointId()].setGoal(this->landingDgain[i][j], transitionTime);
-        }
-      }else{
-        double transitionTime = std::max(this->support2SwingTransitionTime, dt*2); // 現状, setGoal(*,dt)以下の時間でgoal指定するとwriteOutPortDataが破綻するのでテンポラリ
-        for(int j=0;j<jointPath.numJoints();j++){
-          if(o_stServoPGainPercentage[jointPath.joint(j)->jointId()].getGoal() != this->swingPgain[i][j]) o_stServoPGainPercentage[jointPath.joint(j)->jointId()].setGoal(this->swingPgain[i][j], transitionTime);
-          if(o_stServoDGainPercentage[jointPath.joint(j)->jointId()].getGoal() != this->swingDgain[i][j]) o_stServoDGainPercentage[jointPath.joint(j)->jointId()].setGoal(this->swingDgain[i][j], transitionTime);
-        }
+    {
+      // 速度・加速度を考慮しない重力補償
+      actRobotTqc->rootLink()->T() = gaitParam.actRobot->rootLink()->T();
+      actRobotTqc->rootLink()->v() = cnoid::Vector3::Zero();
+      actRobotTqc->rootLink()->w() = cnoid::Vector3::Zero();
+      actRobotTqc->rootLink()->dv() = cnoid::Vector3(0.0,0.0,gaitParam.g);
+      actRobotTqc->rootLink()->dw() = cnoid::Vector3::Zero();
+      for(int i=0;i<actRobotTqc->numJoints();i++){
+	actRobotTqc->joint(i)->q() = gaitParam.actRobot->joint(i)->q();
+	actRobotTqc->joint(i)->dq() = 0.0;
+	actRobotTqc->joint(i)->ddq() = 0.0;
       }
-    }else{ // Manual Control on
-      double transitionTime = std::max(gaitParam.isManualControlMode[i].remain_time(), dt*2); // 現状, setGoal(*,dt)以下の時間でgoal指定するとwriteOutPortDataが破綻するのでテンポラリ
+      actRobotTqc->calcForwardKinematics(true, true);
+      cnoid::calcInverseDynamics(actRobotTqc->rootLink()); // actRobotTqc->joint()->u()に書き込まれる
+      for(int i=0;i<actRobotTqc->numJoints();i++){
+	tau_g[i] = actRobotTqc->joint(i)->u();
+	actRobotTqc->joint(i)->u() = 0.0;
+      }
+    }
+
+    // tgtEEWrench
+    for(int i=0;i<gaitParam.eeName.size();i++){
+      cnoid::JointPath jointPath(actRobotTqc->rootLink(), actRobotTqc->link(gaitParam.eeParentLink[i]));
+      cnoid::MatrixXd J = cnoid::MatrixXd::Zero(6,jointPath.numJoints()); // generate frame. endeffector origin
+      cnoid::setJacobian<0x3f,0,0,true>(jointPath,actRobotTqc->link(gaitParam.eeParentLink[i]),gaitParam.eeLocalT[i].translation(), // input
+					J); // output
+      cnoid::VectorX tau = - J.transpose() * tgtEEWrench[i];
       for(int j=0;j<jointPath.numJoints();j++){
-        if(o_stServoPGainPercentage[jointPath.joint(j)->jointId()].getGoal() != 100.0) o_stServoPGainPercentage[jointPath.joint(j)->jointId()].setGoal(100.0, transitionTime);
-        if(o_stServoDGainPercentage[jointPath.joint(j)->jointId()].getGoal() != 100.0) o_stServoDGainPercentage[jointPath.joint(j)->jointId()].setGoal(100.0, transitionTime);
+	jointPath.joint(j)->u() += tau[j];
       }
+    }
+
+    for(int i=0;i<actRobotTqc->numJoints();i++){
+      actRobotTqc->joint(i)->q() = gaitParam.actRobot->joint(i)->q();
+      actRobotTqc->joint(i)->dq() = (gaitParam.genRobot->joint(i)->q() - prev_q[i]) / dt;
+      actRobotTqc->joint(i)->ddq() = (gaitParam.genRobot->joint(i)->dq() - prev_dq[i]) / dt;
+    }
+    actRobotTqc->calcForwardKinematics(true, true);
+    cnoid::calcInverseDynamics(actRobotTqc->rootLink()); // actRobotTqc->joint()->u()に書き込まれる
+
+    // Gain
+    for(int i=0;i<NUM_LEGS;i++){
+      cnoid::JointPath jointPath(actRobotTqc->rootLink(), actRobotTqc->link(gaitParam.eeParentLink[i]));
+      if(gaitParam.isManualControlMode[i].getGoal() == 0.0) { // Manual Control off
+	if(gaitParam.footstepNodesList[0].isSupportPhase[i]){
+	  double transitionTime = std::max(this->landing2SupportTransitionTime, dt*2); // 現状, setGoal(*,dt)以下の時間でgoal指定するとwriteOutPortDataが破綻するのでテンポラリ
+	  for(int j=0;j<jointPath.numJoints();j++){
+	    if(o_stServoPGainPercentage[jointPath.joint(j)->jointId()].getGoal() != this->supportPgain[i][j]) o_stServoPGainPercentage[jointPath.joint(j)->jointId()].setGoal(this->supportPgain[i][j], transitionTime);
+	    if(o_stServoDGainPercentage[jointPath.joint(j)->jointId()].getGoal() != this->supportDgain[i][j]) o_stServoDGainPercentage[jointPath.joint(j)->jointId()].setGoal(this->supportDgain[i][j], transitionTime);
+	  }
+	}else if(gaitParam.swingState[i] == GaitParam::DOWN_PHASE) {
+	  double transitionTime = std::max(this->swing2LandingTransitionTime, dt*2); // 現状, setGoal(*,dt)以下の時間でgoal指定するとwriteOutPortDataが破綻するのでテンポラリ
+	  for(int j=0;j<jointPath.numJoints();j++){
+	    if(o_stServoPGainPercentage[jointPath.joint(j)->jointId()].getGoal() != this->landingPgain[i][j]) o_stServoPGainPercentage[jointPath.joint(j)->jointId()].setGoal(this->landingPgain[i][j], transitionTime);
+	    if(o_stServoDGainPercentage[jointPath.joint(j)->jointId()].getGoal() != this->landingDgain[i][j]) o_stServoDGainPercentage[jointPath.joint(j)->jointId()].setGoal(this->landingDgain[i][j], transitionTime);
+	  }
+	}else{
+	  double transitionTime = std::max(this->support2SwingTransitionTime, dt*2); // 現状, setGoal(*,dt)以下の時間でgoal指定するとwriteOutPortDataが破綻するのでテンポラリ
+	  for(int j=0;j<jointPath.numJoints();j++){
+	    if(o_stServoPGainPercentage[jointPath.joint(j)->jointId()].getGoal() != this->swingPgain[i][j]) o_stServoPGainPercentage[jointPath.joint(j)->jointId()].setGoal(this->swingPgain[i][j], transitionTime);
+	    if(o_stServoDGainPercentage[jointPath.joint(j)->jointId()].getGoal() != this->swingDgain[i][j]) o_stServoDGainPercentage[jointPath.joint(j)->jointId()].setGoal(this->swingDgain[i][j], transitionTime);
+	  }
+	}
+      }else{ // Manual Control on
+	double transitionTime = std::max(gaitParam.isManualControlMode[i].remain_time(), dt*2); // 現状, setGoal(*,dt)以下の時間でgoal指定するとwriteOutPortDataが破綻するのでテンポラリ
+	for(int j=0;j<jointPath.numJoints();j++){
+	  if(o_stServoPGainPercentage[jointPath.joint(j)->jointId()].getGoal() != 100.0) o_stServoPGainPercentage[jointPath.joint(j)->jointId()].setGoal(100.0, transitionTime);
+	  if(o_stServoDGainPercentage[jointPath.joint(j)->jointId()].getGoal() != 100.0) o_stServoDGainPercentage[jointPath.joint(j)->jointId()].setGoal(100.0, transitionTime);
+	}
+      }
+    }
+
+    for(int i=NUM_LEGS;i<NUM_LEGS+2;i++){
+      cnoid::JointPath jointPath(actRobotTqc->link("CHEST_JOINT2"), actRobotTqc->link(gaitParam.eeParentLink[i]));
+      double arm_gain = 0.0;
+      for(int j=0;j<jointPath.numJoints();j++){
+	if(o_stServoPGainPercentage[jointPath.joint(j)->jointId()].getGoal() != arm_gain) o_stServoPGainPercentage[jointPath.joint(j)->jointId()].setGoal(arm_gain, 3.0);
+	if(o_stServoDGainPercentage[jointPath.joint(j)->jointId()].getGoal() != arm_gain) o_stServoDGainPercentage[jointPath.joint(j)->jointId()].setGoal(arm_gain, 3.0);
+      }
+    }
+  
+    for(int i=0;i<gaitParam.genRobot->numJoints();i++){
+      o_stServoPGainPercentage[i].interpolate(dt);
+      o_stServoDGainPercentage[i].interpolate(dt);
     }
   }
 
-  for(int i=NUM_LEGS;i<NUM_LEGS+2;i++){
-    cnoid::JointPath jointPath(actRobotTqc->link("CHEST_JOINT2"), actRobotTqc->link(gaitParam.eeParentLink[i]));
-    double arm_gain = 0.1;
-    for(int j=0;j<jointPath.numJoints();j++){
-          if(o_stServoPGainPercentage[jointPath.joint(j)->jointId()].getGoal() != arm_gain) o_stServoPGainPercentage[jointPath.joint(j)->jointId()].setGoal(arm_gain, 3.0);
-          if(o_stServoDGainPercentage[jointPath.joint(j)->jointId()].getGoal() != arm_gain) o_stServoDGainPercentage[jointPath.joint(j)->jointId()].setGoal(arm_gain, 3.0);
-        }
+  for(int i=0;i<gaitParam.genRobot->numJoints();i++){
+    prev_q[i] = gaitParam.genRobot->joint(i)->q();
+    prev_dq[i] = gaitParam.genRobot->joint(i)->dq();
   }
   
-  for(int i=0;i<gaitParam.genRobot->numJoints();i++){
-    o_stServoPGainPercentage[i].interpolate(dt);
-    o_stServoDGainPercentage[i].interpolate(dt);
-  }
-
   return true;
 }
 
