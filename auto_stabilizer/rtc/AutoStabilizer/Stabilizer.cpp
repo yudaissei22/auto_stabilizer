@@ -323,14 +323,56 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
       }
     }
 
+    // 分解加速度制御
+    // ee_acc = ee_acc_ref + K (ee_p_ref - ee_p_act) + D (ee_vel_ref - ee_vel_act)
+    // ee_vel = J * dq
+    // ee_acc = J * ddq + dJ * dq
+    // ここで dJ * dq はddq = 0 としたときのee_accだから、q, dqをもとにForwardKinematicsで求められる
+    // J * ddq = ee_acc - dJ * dq を満たすddqを求めて、actualのq, dqと合わせてInverseDynamicsでuを求める
     {
-      for(int i=0;i<actRobotTqc->numJoints();i++){
-	actRobotTqc->joint(i)->q() = gaitParam.actRobot->joint(i)->q();
-	actRobotTqc->joint(i)->dq() = (gaitParam.genRobot->joint(i)->q() - prev_q[i]) / dt;
-	actRobotTqc->joint(i)->ddq() = (gaitParam.genRobot->joint(i)->dq() - prev_dq[i]) / dt;
+      std::vector<cnoid::Vector6> ee_acc_ref;
+      ee_acc_ref.resize(gaitParam.eeName.size());
+      // ee_act_ref
+      // gaitParam.abcEETargetPose を微分してもよい。
+      {
+        gaitParam.genRobot->calcForwardKinematics(true, true); // ee_acc_ref がgenRobot->link(gaitParam.eeParentLink[i])->dv(), dw()に格納される
+	for(int i=0;i<gaitParam.eeName.size();i++){
+	  ee_acc_ref[i][0] = gaitParam.genRobot->link(gaitParam.eeParentLink[i])->dv()[0];
+	  ee_acc_ref[i][1] = gaitParam.genRobot->link(gaitParam.eeParentLink[i])->dv()[1];
+	  ee_acc_ref[i][2] = gaitParam.genRobot->link(gaitParam.eeParentLink[i])->dv()[2];
+	  ee_acc_ref[i][3] = gaitParam.genRobot->link(gaitParam.eeParentLink[i])->dw()[0];
+	  ee_acc_ref[i][4] = gaitParam.genRobot->link(gaitParam.eeParentLink[i])->dw()[1];
+	  ee_acc_ref[i][5] = gaitParam.genRobot->link(gaitParam.eeParentLink[i])->dw()[2];
+	}
       }
-      actRobotTqc->calcForwardKinematics(true, true);
-      cnoid::calcInverseDynamics(actRobotTqc->rootLink()); // actRobotTqc->joint()->u()に書き込まれる
+      
+      std::vector<cnoid::Vector6> dJdq;
+      dJdq.resize(gaitParam.eeName.size());
+      // dJ * dqを求める
+      {
+	actRobotTqc->rootLink()->T() = gaitParam.actRobot->rootLink()->T();
+	actRobotTqc->rootLink()->v() = cnoid::Vector3::Zero(); // TODO
+	actRobotTqc->rootLink()->w() = cnoid::Vector3::Zero(); // TODO
+	actRobotTqc->rootLink()->dv() = cnoid::Vector3::Zero(); // TODO
+	actRobotTqc->rootLink()->dw() = cnoid::Vector3::Zero(); // TODO
+	for(int i=0;i<actRobotTqc->numJoints();i++){
+	  actRobotTqc->joint(i)->q() = gaitParam.actRobot->joint(i)->q();
+	  // dqとしてactualを使うと振動する可能性があるが、referenceを使うと外力による駆動を考慮できない
+	  // actRobotTqc->joint(i)->dq() = (gaitParam.genRobot->joint(i)->q() - prev_q[i]) / dt;
+	  actRobotTqc->joint(i)->dq() = gaitParam.actRobot->joint(i)->dq();
+	  actRobotTqc->joint(i)->ddq() = 0.0;
+	}
+	actRobotTqc->calcForwardKinematics(true, true); // dJ * dq がactRobotTqc->link(gaitParam.eeParentLink[i])->dv(), dw()に格納される
+	for(int i=0;i<gaitParam.eeName.size();i++){
+	  dJdq[i][0] = actRobotTqc->link(gaitParam.eeParentLink[i])->dv()[0];
+	  dJdq[i][1] = actRobotTqc->link(gaitParam.eeParentLink[i])->dv()[1];
+	  dJdq[i][2] = actRobotTqc->link(gaitParam.eeParentLink[i])->dv()[2];
+	  dJdq[i][3] = actRobotTqc->link(gaitParam.eeParentLink[i])->dw()[0];
+	  dJdq[i][4] = actRobotTqc->link(gaitParam.eeParentLink[i])->dw()[1];
+	  dJdq[i][5] = actRobotTqc->link(gaitParam.eeParentLink[i])->dw()[2];
+	}
+      }
+
     }
 
     for(int i=0;i<actRobotTqc->numJoints();i++){
