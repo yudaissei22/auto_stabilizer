@@ -330,22 +330,36 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
     // ここで dJ * dq はddq = 0 としたときのee_accだから、q, dqをもとにForwardKinematicsで求められる
     // J * ddq = ee_acc - dJ * dq を満たすddqを求めて、actualのq, dqと合わせてInverseDynamicsでuを求める
     {
-      std::vector<cnoid::Vector6> ee_acc_ref;
-      ee_acc_ref.resize(gaitParam.eeName.size());
-      // ee_act_ref
-      // gaitParam.abcEETargetPose を微分してもよい。
+      std::vector<cnoid::Vector6> ee_acc;
+      ee_acc.resize(gaitParam.eeName.size());
+      // ee_act
       {
+	// ee_act_ref
+	// gaitParam.abcEETargetPose を微分してもよい。
         gaitParam.genRobot->calcForwardKinematics(true, true); // ee_acc_ref がgenRobot->link(gaitParam.eeParentLink[i])->dv(), dw()に格納される
 	for(int i=0;i<gaitParam.eeName.size();i++){
-	  ee_acc_ref[i][0] = gaitParam.genRobot->link(gaitParam.eeParentLink[i])->dv()[0];
-	  ee_acc_ref[i][1] = gaitParam.genRobot->link(gaitParam.eeParentLink[i])->dv()[1];
-	  ee_acc_ref[i][2] = gaitParam.genRobot->link(gaitParam.eeParentLink[i])->dv()[2];
-	  ee_acc_ref[i][3] = gaitParam.genRobot->link(gaitParam.eeParentLink[i])->dw()[0];
-	  ee_acc_ref[i][4] = gaitParam.genRobot->link(gaitParam.eeParentLink[i])->dw()[1];
-	  ee_acc_ref[i][5] = gaitParam.genRobot->link(gaitParam.eeParentLink[i])->dw()[2];
+	  ee_acc[i][0] = gaitParam.genRobot->link(gaitParam.eeParentLink[i])->dv()[0];
+	  ee_acc[i][1] = gaitParam.genRobot->link(gaitParam.eeParentLink[i])->dv()[1];
+	  ee_acc[i][2] = gaitParam.genRobot->link(gaitParam.eeParentLink[i])->dv()[2];
+	  ee_acc[i][3] = gaitParam.genRobot->link(gaitParam.eeParentLink[i])->dw()[0];
+	  ee_acc[i][4] = gaitParam.genRobot->link(gaitParam.eeParentLink[i])->dw()[1];
+	  ee_acc[i][5] = gaitParam.genRobot->link(gaitParam.eeParentLink[i])->dw()[2];
+	}
+
+	// K (ee_p_ref - ee_p_act)
+	for(int i=0;i<gaitParam.eeName.size();i++){
+	  cnoid::Matrix3 eeR = gaitParam.actEEPose[i].linear();
+	  cnoid::Vector6 eePoseDiffLocal; // endEfector frame
+	  eePoseDiffLocal.head<3>() = eeR.transpose() * (gaitParam.refEEPose[i].translation() - gaitParam.actEEPose[i].translation());
+	  eePoseDiffLocal.head<3>() = eeR.transpose() * cnoid::rpyFromRot(gaitParam.refEEPose[i].linear() - gaitParam.actEEPose[i].linear());
+	  for(int j=0;j<6;j++){
+	    eePoseDiffLocal[j] = this->K[i][j] * eePoseDiffLocal[j];
+	  }
+	  ee_acc[i].head<3>() += eeR*eePoseDiffLocal.head<3>(); // generate frame
+	  ee_acc[i].tail<3>() += eeR*eePoseDiffLocal.tail<3>(); // generate frame
 	}
       }
-      
+
       std::vector<cnoid::Vector6> dJdq;
       dJdq.resize(gaitParam.eeName.size());
       // dJ * dqを求める
@@ -375,6 +389,7 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
 
     }
 
+    // 最終的な出力トルクを代入
     for(int i=0;i<actRobotTqc->numJoints();i++){
       actRobotTqc->joint(i)->u() = tau_g[i] + tau_lip[i];
     }

@@ -22,6 +22,9 @@ public:
   double landing2SupportTransitionTime = 0.1; // [s]. 0より大きい
   double support2SwingTransitionTime = 0.2; // [s]. 0より大きい
 
+  std::vector<cnoid::Vector6> D; // 要素数EndEffectors. EndEffector frame. endEffector origin. 0以上
+  std::vector<cnoid::Vector6> K; // 要素数EndEffectors. EndEffector frame. endEffector origin. 0以上
+
   void init(const GaitParam& gaitParam, cnoid::BodyPtr& actRobotTqc){
     for(int i=0;i<NUM_LEGS;i++){
       cnoid::JointPath jointPath(actRobotTqc->rootLink(), actRobotTqc->link(gaitParam.eeParentLink[i]));
@@ -47,6 +50,12 @@ public:
         swingPgain[i].resize(jointPath.numJoints(), 100.0);
         swingDgain[i].resize(jointPath.numJoints(), 100.0);
       }
+    }
+    for(int i=0;i<gaitParam.eeName.size();i++){
+      cnoid::Vector6 defaultD; defaultD << 600, 600, 600, 200, 200, 200;
+      this->D.push_back(defaultD);
+      cnoid::Vector6 defaultK; defaultK << 400, 400, 400, 200, 200, 200;
+      this->K.push_back(defaultK);
     }
   }
 protected:
