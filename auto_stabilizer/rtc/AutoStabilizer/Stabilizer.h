@@ -52,12 +52,24 @@ public:
       }
     }
     for(int i=0;i<gaitParam.eeName.size();i++){
-      cnoid::Vector6 defaultD; defaultD << 600, 600, 600, 200, 200, 200;
+      cnoid::Vector6 defaultD;
+      if(i<NUM_LEGS){
+	defaultD << 0.0, 0.0, 0.0, 0.0, 0.0, 0.0;
+      }else{
+	//defaultD << 0.05, 0.05, 0.05, 0.01, 0.01, 0.01; arm_gain 0.1
+	defaultD << 10, 10, 10, 10, 10, 10;
+      }
       this->D.push_back(defaultD);
-      cnoid::Vector6 defaultK; defaultK << 0.001, 0.001, 0.001, 0.1, 0.1, 0.1;
+      cnoid::Vector6 defaultK;
+      if(i<NUM_LEGS){
+	defaultK << 0.0, 0.0, 0.0, 0.0, 0.0, 0.0;
+      }else{
+	//defaultK << 0.02, 0.02, 0.02, 0.02, 0.02, 0.02; arm_gain 0.1
+	defaultK << 30, 30, 30, 30, 30, 30;
+      }
       this->K.push_back(defaultK);
     }
-    
+
     this->eeTask_.clear();
     for(int i=0;i<gaitParam.eeName.size();i++){
       this->eeTask_.push_back(std::make_shared<prioritized_qp_osqp::Task>());
@@ -79,7 +91,7 @@ public:
                       cpp_filters::TwoPointInterpolator<cnoid::Vector3>& o_stOffsetRootRpy, cnoid::Position& o_stTargetRootPose, cnoid::Vector3& o_stTargetZmp, std::vector<cnoid::Vector6>& o_stEETargetWrench) const;
 
   bool calcTorque(double dt, const GaitParam& gaitParam, bool useActState, cnoid::BodyPtr& actRobotTqc, const std::vector<cnoid::Vector6>& tgtEEWrench /* 要素数EndEffector数. generate座標系. EndEffector origin*/,
-                  std::vector<cpp_filters::TwoPointInterpolator<double> >& o_stServoPGainPercentage, std::vector<cpp_filters::TwoPointInterpolator<double> >& o_stServoDGainPercentage, Eigen::VectorXd& prev_q, Eigen::VectorXd& prev_dq) const;
+                  std::vector<cpp_filters::TwoPointInterpolator<double> >& o_stServoPGainPercentage, std::vector<cpp_filters::TwoPointInterpolator<double> >& o_stServoDGainPercentage, Eigen::VectorXd& prev_q, Eigen::VectorXd& prev_dq, std::vector<cnoid::Vector6>& eePoseDiff_prev) const;
 protected:
   bool moveBasePosRotForBodyRPYControl(double dt, const GaitParam& gaitParam, bool useActState,
                                        cpp_filters::TwoPointInterpolator<cnoid::Vector3>& o_stOffsetRootRpy, cnoid::Position& o_stTargetRootPose) const;

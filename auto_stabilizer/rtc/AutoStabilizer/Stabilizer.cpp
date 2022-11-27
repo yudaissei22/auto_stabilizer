@@ -273,7 +273,7 @@ bool Stabilizer::calcWrench(const GaitParam& gaitParam, const cnoid::Vector3& tg
 }
 
 bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActState, cnoid::BodyPtr& actRobotTqc, const std::vector<cnoid::Vector6>& tgtEEWrench /* 要素数EndEffector数. generate座標系. EndEffector origin*/,
-                            std::vector<cpp_filters::TwoPointInterpolator<double> >& o_stServoPGainPercentage, std::vector<cpp_filters::TwoPointInterpolator<double> >& o_stServoDGainPercentage, Eigen::VectorXd& prev_q, Eigen::VectorXd& prev_dq) const{
+                            std::vector<cpp_filters::TwoPointInterpolator<double> >& o_stServoPGainPercentage, std::vector<cpp_filters::TwoPointInterpolator<double> >& o_stServoDGainPercentage, Eigen::VectorXd& prev_q, Eigen::VectorXd& prev_dq, std::vector<cnoid::Vector6>& eePoseDiff_prev) const{
 
   if(!useActState){
     for(int i=0;i<actRobotTqc->numJoints();i++) actRobotTqc->joint(i)->u() = 0.0;
@@ -347,17 +347,24 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
 	  ee_acc[i][5] = gaitParam.genRobot->link(gaitParam.eeParentLink[i])->dw()[2];
 	}
 
-	// K (ee_p_ref - ee_p_act)
+	// K (ee_p_ref - ee_p_act) + D (ee_vel_ref - ee_vel_act)
 	for(int i=0;i<gaitParam.eeName.size();i++){
 	  cnoid::Matrix3 eeR = gaitParam.actEEPose[i].linear();
 	  cnoid::Vector6 eePoseDiffLocal; // endEfector frame
 	  eePoseDiffLocal.head<3>() = eeR.transpose() * (gaitParam.refEEPose[i].translation() - gaitParam.actEEPose[i].translation());
-	  eePoseDiffLocal.head<3>() = eeR.transpose() * cnoid::rpyFromRot(gaitParam.refEEPose[i].linear() - gaitParam.actEEPose[i].linear());
+	  eePoseDiffLocal.tail<3>() = cnoid::rpyFromRot(gaitParam.actEEPose[i].linear().transpose()*gaitParam.refEEPose[i].linear());
+	  cnoid::Vector6 eeVelDiffLocal = (eePoseDiffLocal - eePoseDiff_prev[i]);
+	  cnoid::Vector6 eePoseDiffGainLocal;
+	  cnoid::Vector6 eeVelDiffGainLocal;
 	  for(int j=0;j<6;j++){
-	    eePoseDiffLocal[j] = this->K[i][j] * eePoseDiffLocal[j];
+	    eePoseDiffGainLocal[j] = this->K[i][j] * eePoseDiffLocal[j];
+	    eeVelDiffGainLocal[j] = this->D[i][j] * eeVelDiffLocal[j];
 	  }
-	  ee_acc[i].head<3>() += eeR*eePoseDiffLocal.head<3>(); // generate frame
-	  ee_acc[i].tail<3>() += eeR*eePoseDiffLocal.tail<3>(); // generate frame
+	  ee_acc[i].head<3>() += eeR * eePoseDiffGainLocal.head<3>(); // generate frame
+	  ee_acc[i].tail<3>() += eeR * eePoseDiffGainLocal.tail<3>(); // generate frame
+	  ee_acc[i].head<3>() += eeR * eeVelDiffGainLocal.head<3>(); // generate frame
+	  ee_acc[i].tail<3>() += eeR * eeVelDiffGainLocal.tail<3>(); // generate frame
+	  eePoseDiff_prev[i] = eePoseDiffLocal;
 	}
       }
 
@@ -401,7 +408,7 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
 
 	  std::vector<Eigen::Triplet<double> > tripletList;
 	  tripletList.reserve(100);//適当
-	  for (int j=0;j<jointPath.numJoints();j++) { // 該当する箇所にinsert
+	  for (int j=0;j<jointPath.numJoints();j++) { // 該当する箇所に代入
 	    for(int k=0;k<6;k++){
 	      tripletList.push_back(Eigen::Triplet<double>(k,6+jointPath.joint(j)->jointId(),J(k,j))); // insertすると時間がかかる
 	    }
@@ -413,13 +420,14 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
 	  this->eeTask_[i]->b() = ee_acc[i] - dJdq[i];
 
 	  this->eeTask_[i]->wa() = cnoid::VectorX::Ones(6);
-	  this->eeTask_[i]->C() = Eigen::SparseMatrix<double,Eigen::RowMajor>(0,6 + actRobotTqc->numJoints());
-	  this->eeTask_[i]->dl() = Eigen::VectorXd::Zero(0);
-	  this->eeTask_[i]->du() = Eigen::VectorXd::Ones(0);
-	  this->eeTask_[i]->wc() = cnoid::VectorX::Ones(0);
-	  this->eeTask_[i]->w() = cnoid::VectorX::Ones(6 + actRobotTqc->numJoints()) * 1e-3;
+	  this->eeTask_[i]->C() = Eigen::SparseMatrix<double, Eigen::RowMajor>(6 + actRobotTqc->numJoints(),6 + actRobotTqc->numJoints());
+	  for(int j=0;j<6+actRobotTqc->numJoints();j++) this->eeTask_[i]->C().insert(j,j) = 1.0;
+	  this->eeTask_[i]->dl() = -Eigen::VectorXd::Ones(6 + actRobotTqc->numJoints());
+	  this->eeTask_[i]->du() = Eigen::VectorXd::Ones(6 + actRobotTqc->numJoints());
+	  this->eeTask_[i]->wc() = cnoid::VectorX::Ones(6 + actRobotTqc->numJoints()) * 1e-6;
+	  this->eeTask_[i]->w() = cnoid::VectorX::Ones(6 + actRobotTqc->numJoints()) * 1e-6;
 	  this->eeTask_[i]->toSolve() = true;
-	  this->eeTask_[i]->settings().check_termination = 3; // default 25. 高速化
+	  this->eeTask_[i]->settings().check_termination = 15; // default 25. 高速化
 	  this->eeTask_[i]->settings().verbose = 0;
 	}
 
@@ -454,7 +462,6 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
 	  }
 	}
       }
-
     }
 
     // 最終的な出力トルクを代入
@@ -462,7 +469,8 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
       actRobotTqc->joint(i)->u() = tau_g[i] + tau_lip[i] + tau_ee[i];
     }
 
-    /*    std::cerr << "tau_g" << std::endl; 
+    /*
+    std::cerr << "tau_g" << std::endl; 
     for(int i=0;i<actRobotTqc->numJoints();i++){
       std::cerr << tau_g[i] << " ";
     }
@@ -478,8 +486,14 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
     for(int i=0;i<actRobotTqc->numJoints();i++){
       std::cerr << tau_ee[i] << " ";
     }
-    std::cerr << std::endl;*/
+    std::cerr << std::endl;
 
+    std::cerr << "tau" << std::endl; 
+    for(int i=0;i<actRobotTqc->numJoints();i++){
+      std::cerr << actRobotTqc->joint(i)->u() << " ";
+    }
+    std::cerr << std::endl;*/
+    
     // Gain
     {
       for(int i=0;i<NUM_LEGS;i++){
@@ -516,7 +530,7 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
       // arm
       for(int i=NUM_LEGS;i<NUM_LEGS+2;i++){
 	cnoid::JointPath jointPath(actRobotTqc->link("CHEST_JOINT2"), actRobotTqc->link(gaitParam.eeParentLink[i]));
-	double arm_gain = 0.1;
+	double arm_gain = 0.0;
 	for(int j=0;j<jointPath.numJoints();j++){
 	  if(o_stServoPGainPercentage[jointPath.joint(j)->jointId()].getGoal() != arm_gain) o_stServoPGainPercentage[jointPath.joint(j)->jointId()].setGoal(arm_gain, 3.0);
 	  if(o_stServoDGainPercentage[jointPath.joint(j)->jointId()].getGoal() != arm_gain) o_stServoDGainPercentage[jointPath.joint(j)->jointId()].setGoal(arm_gain, 3.0);

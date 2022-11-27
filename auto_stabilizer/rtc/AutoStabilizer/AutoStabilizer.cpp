@@ -626,8 +626,8 @@ bool AutoStabilizer::execAutoStabilizer(const AutoStabilizer::ControlMode& mode,
                                    gaitParam.genRobot); // output
 
   stabilizer.calcTorque(dt, gaitParam, mode.isSTRunning(),
-			gaitParam.actRobotTqc, gaitParam.stEETargetWrench, gaitParam.stServoPGainPercentage, gaitParam.stServoDGainPercentage, gaitParam.prev_q, gaitParam.prev_dq);
-  
+			gaitParam.actRobotTqc, gaitParam.stEETargetWrench, gaitParam.stServoPGainPercentage, gaitParam.stServoDGainPercentage, gaitParam.prev_q, gaitParam.prev_dq, gaitParam.eePoseDiffLocal_prev);
+
   return true;
 }
 

@@ -150,6 +150,7 @@ public:
   cnoid::BodyPtr actRobotTqc; // output. 関節トルク制御用. (actRobotと同じだが、uの値として指令関節トルクが入っている)
   Eigen::VectorXd prev_q;
   Eigen::VectorXd prev_dq;
+  std::vector<cnoid::Vector6> eePoseDiffLocal_prev;
 
   // FullbodyIKSolver
   cnoid::BodyPtr genRobot; // output. 関節位置制御用
@@ -205,6 +206,7 @@ public:
     icEETargetPose.push_back(cnoid::Position::Identity());
     abcEETargetPose.push_back(cnoid::Position::Identity());
     stEETargetWrench.push_back(cnoid::Vector6::Zero());
+    eePoseDiffLocal_prev.push_back(cnoid::Vector6::Zero());
   }
 
   // startAutoStabilizer時に呼ばれる
