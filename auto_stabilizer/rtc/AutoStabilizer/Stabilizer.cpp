@@ -284,6 +284,7 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
   } else {
     cnoid::VectorX tau_g = cnoid::VectorXd::Zero(actRobotTqc->numJoints()); // 重力
     cnoid::VectorX tau_lip = cnoid::VectorXd::Zero(actRobotTqc->numJoints()); // 倒立振子のtgtWrench
+    cnoid::VectorX tau_ee = cnoid::VectorXd::Zero(actRobotTqc->numJoints()); // endEffector
 
     // 速度・加速度を考慮しない重力補償
     {
@@ -387,12 +388,97 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
 	}
       }
 
+      // ddqを計算
+      {
+	for(int i=0;i<gaitParam.eeName.size();i++){
+
+	  // AはJacobian
+	  this->eeTask_[i]->A() = Eigen::SparseMatrix<double, Eigen::RowMajor>(6,6 + actRobotTqc->numJoints());
+	  cnoid::JointPath jointPath(actRobotTqc->rootLink(), actRobotTqc->link(gaitParam.eeParentLink[i]));
+	  cnoid::MatrixXd J = cnoid::MatrixXd::Zero(6,jointPath.numJoints()); // generate frame. endeffector origin
+	  cnoid::setJacobian<0x3f,0,0,true>(jointPath,actRobotTqc->link(gaitParam.eeParentLink[i]),gaitParam.eeLocalT[i].translation(), // input
+					    J); // output
+
+	  std::vector<Eigen::Triplet<double> > tripletList;
+	  tripletList.reserve(100);//適当
+	  for (int j=0;j<jointPath.numJoints();j++) { // 該当する箇所にinsert
+	    for(int k=0;k<6;k++){
+	      tripletList.push_back(Eigen::Triplet<double>(k,6+jointPath.joint(j)->jointId(),J(k,j))); // insertすると時間がかかる
+	    }
+	  }
+	  this->eeTask_[i]->A().setFromTriplets(tripletList.begin(), tripletList.end());
+	  for(int j=0;j<6;j++) this->eeTask_[i]->A().insert(j,j) = 1.0; // root
+
+	  // bはee_acc - dJ * dq
+	  this->eeTask_[i]->b() = ee_acc[i] - dJdq[i];
+
+	  this->eeTask_[i]->wa() = cnoid::VectorX::Ones(6);
+	  this->eeTask_[i]->C() = Eigen::SparseMatrix<double,Eigen::RowMajor>(0,6 + actRobotTqc->numJoints());
+	  this->eeTask_[i]->dl() = Eigen::VectorXd::Zero(0);
+	  this->eeTask_[i]->du() = Eigen::VectorXd::Ones(0);
+	  this->eeTask_[i]->wc() = cnoid::VectorX::Ones(0);
+	  this->eeTask_[i]->w() = cnoid::VectorX::Ones(6 + actRobotTqc->numJoints()) * 1e-3;
+	  this->eeTask_[i]->toSolve() = true;
+	  this->eeTask_[i]->settings().check_termination = 3; // default 25. 高速化
+	  this->eeTask_[i]->settings().verbose = 0;
+	}
+
+	std::vector<std::shared_ptr<prioritized_qp_base::Task> > tasks;
+	for(int i=0;i<gaitParam.eeName.size();i++){
+	  tasks.push_back(this->eeTask_[i]);
+	}
+	cnoid::VectorX result;
+	if(!prioritized_qp_base::solve(tasks,
+				       result,
+				       0 // debuglevel
+				       )){
+	  std::cerr << "fail" << std::endl; // TODO
+	}else {
+	  // ddqを代入
+	  actRobotTqc->rootLink()->T() = gaitParam.actRobot->rootLink()->T();
+	  actRobotTqc->rootLink()->v() = cnoid::Vector3::Zero(); // TODO
+	  actRobotTqc->rootLink()->w() = cnoid::Vector3::Zero(); // TODO
+	  actRobotTqc->rootLink()->dv() = cnoid::Vector3::Zero(); // TODO << result[0], result[1], result[2];
+	  actRobotTqc->rootLink()->dw() = cnoid::Vector3::Zero(); // TODO << result[3], result[4], result[5];
+	  for(int i=0;i<actRobotTqc->numJoints();i++){
+	    actRobotTqc->joint(i)->q() = gaitParam.actRobot->joint(i)->q();
+	    // dqとしてactualを使うと振動する可能性があるが、referenceを使うと外力による駆動を考慮できない
+	    // actRobotTqc->joint(i)->dq() = (gaitParam.genRobot->joint(i)->q() - prev_q[i]) / dt;
+	    actRobotTqc->joint(i)->dq() = gaitParam.actRobot->joint(i)->dq();
+	    actRobotTqc->joint(i)->ddq() = result[6+i];
+	  }
+	  cnoid::calcInverseDynamics(actRobotTqc->rootLink()); // actRobotTqc->joint()->u()に書き込まれる
+	  for(int i=0;i<actRobotTqc->numJoints();i++){
+	    tau_ee[i] = actRobotTqc->joint(i)->u();
+	    actRobotTqc->joint(i)->u() = 0.0;
+	  }
+	}
+      }
+
     }
 
     // 最終的な出力トルクを代入
     for(int i=0;i<actRobotTqc->numJoints();i++){
-      actRobotTqc->joint(i)->u() = tau_g[i] + tau_lip[i];
+      actRobotTqc->joint(i)->u() = tau_g[i] + tau_lip[i] + tau_ee[i];
     }
+
+    /*    std::cerr << "tau_g" << std::endl; 
+    for(int i=0;i<actRobotTqc->numJoints();i++){
+      std::cerr << tau_g[i] << " ";
+    }
+    std::cerr << std::endl;
+
+    std::cerr << "tau_lip" << std::endl; 
+    for(int i=0;i<actRobotTqc->numJoints();i++){
+      std::cerr << tau_lip[i] << " ";
+    }
+    std::cerr << std::endl;
+
+    std::cerr << "tau_ee" << std::endl; 
+    for(int i=0;i<actRobotTqc->numJoints();i++){
+      std::cerr << tau_ee[i] << " ";
+    }
+    std::cerr << std::endl;*/
 
     // Gain
     {

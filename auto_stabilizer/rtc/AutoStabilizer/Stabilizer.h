@@ -54,15 +54,23 @@ public:
     for(int i=0;i<gaitParam.eeName.size();i++){
       cnoid::Vector6 defaultD; defaultD << 600, 600, 600, 200, 200, 200;
       this->D.push_back(defaultD);
-      cnoid::Vector6 defaultK; defaultK << 400, 400, 400, 200, 200, 200;
+      cnoid::Vector6 defaultK; defaultK << 0.001, 0.001, 0.001, 0.1, 0.1, 0.1;
       this->K.push_back(defaultK);
+    }
+    
+    this->eeTask_.clear();
+    for(int i=0;i<gaitParam.eeName.size();i++){
+      this->eeTask_.push_back(std::make_shared<prioritized_qp_osqp::Task>());
     }
   }
 protected:
   // 計算高速化のためのキャッシュ. クリアしなくても別に副作用はない.
+  // for calcWrench
   mutable std::shared_ptr<prioritized_qp_osqp::Task> constraintTask_ = std::make_shared<prioritized_qp_osqp::Task>();
   mutable std::shared_ptr<prioritized_qp_osqp::Task> tgtZmpTask_ = std::make_shared<prioritized_qp_osqp::Task>();;
   mutable std::shared_ptr<prioritized_qp_osqp::Task> copTask_ = std::make_shared<prioritized_qp_osqp::Task>();;
+  // for calcTorque
+  mutable std::vector<std::shared_ptr<prioritized_qp_osqp::Task>> eeTask_;
 public:
   void initStabilizerOutput(const GaitParam& gaitParam,
                             cpp_filters::TwoPointInterpolator<cnoid::Vector3>& o_stOffsetRootRpy, cnoid::Vector3& o_stTargetZmp, std::vector<cpp_filters::TwoPointInterpolator<double> >& o_stServoPGainPercentage, std::vector<cpp_filters::TwoPointInterpolator<double> >& o_stServoDGainPercentage) const;
