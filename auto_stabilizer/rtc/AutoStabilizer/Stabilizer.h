@@ -57,7 +57,7 @@ public:
 	defaultD << 0.0, 0.0, 0.0, 0.0, 0.0, 0.0;
       }else{
 	//defaultD << 0.05, 0.05, 0.05, 0.01, 0.01, 0.01; arm_gain 0.1
-	defaultD << 10, 10, 10, 10, 10, 10;
+	defaultD << 60, 60, 60, 30, 30, 30;
       }
       this->D.push_back(defaultD);
       cnoid::Vector6 defaultK;
@@ -65,7 +65,7 @@ public:
 	defaultK << 0.0, 0.0, 0.0, 0.0, 0.0, 0.0;
       }else{
 	//defaultK << 0.02, 0.02, 0.02, 0.02, 0.02, 0.02; arm_gain 0.1
-	defaultK << 30, 30, 30, 30, 30, 30;
+	defaultK << 300, 300, 300, 100, 100, 100;
       }
       this->K.push_back(defaultK);
     }

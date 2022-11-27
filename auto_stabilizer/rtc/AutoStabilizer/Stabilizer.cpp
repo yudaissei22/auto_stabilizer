@@ -406,14 +406,16 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
 	  cnoid::setJacobian<0x3f,0,0,true>(jointPath,actRobotTqc->link(gaitParam.eeParentLink[i]),gaitParam.eeLocalT[i].translation(), // input
 					    J); // output
 
-	  std::vector<Eigen::Triplet<double> > tripletList;
-	  tripletList.reserve(100);//適当
-	  for (int j=0;j<jointPath.numJoints();j++) { // 該当する箇所に代入
-	    for(int k=0;k<6;k++){
-	      tripletList.push_back(Eigen::Triplet<double>(k,6+jointPath.joint(j)->jointId(),J(k,j))); // insertすると時間がかかる
+	  { // 該当する箇所に代入
+	    std::vector<Eigen::Triplet<double> > tripletList;
+	    tripletList.reserve(100);//適当
+	    for (int j=0;j<jointPath.numJoints();j++) {
+	      for(int k=0;k<6;k++){
+		tripletList.push_back(Eigen::Triplet<double>(k,6+jointPath.joint(j)->jointId(),J(k,j))); // insertすると時間がかかる
+	      }
 	    }
+	    this->eeTask_[i]->A().setFromTriplets(tripletList.begin(), tripletList.end());
 	  }
-	  this->eeTask_[i]->A().setFromTriplets(tripletList.begin(), tripletList.end());
 	  for(int j=0;j<6;j++) this->eeTask_[i]->A().insert(j,j) = 1.0; // root
 
 	  // bはee_acc - dJ * dq
@@ -421,9 +423,18 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
 
 	  this->eeTask_[i]->wa() = cnoid::VectorX::Ones(6);
 	  this->eeTask_[i]->C() = Eigen::SparseMatrix<double, Eigen::RowMajor>(6 + actRobotTqc->numJoints(),6 + actRobotTqc->numJoints());
-	  for(int j=0;j<6+actRobotTqc->numJoints();j++) this->eeTask_[i]->C().insert(j,j) = 1.0;
-	  this->eeTask_[i]->dl() = -Eigen::VectorXd::Ones(6 + actRobotTqc->numJoints());
-	  this->eeTask_[i]->du() = Eigen::VectorXd::Ones(6 + actRobotTqc->numJoints());
+	  { // 該当する箇所に代入
+	    std::vector<Eigen::Triplet<double> > tripletList;
+	    tripletList.reserve(100);//適当
+	    for(int j=0;j<6;j++) tripletList.push_back(Eigen::Triplet<double>(j,j,1.0));
+	    for(int j=0;j<actRobotTqc->numJoints();j++){
+	      bool sign = gaitParam.genRobot->joint(j)->q() > gaitParam.actRobot->joint(j)->q();
+	      tripletList.push_back(Eigen::Triplet<double>(6+j,6+j,sign? 1.0 : -1.0)); // insertすると時間がかかる
+	    }
+	    this->eeTask_[i]->C().setFromTriplets(tripletList.begin(), tripletList.end());
+	  }
+	  this->eeTask_[i]->dl() = Eigen::VectorXd::Zero(6 + actRobotTqc->numJoints());
+	  this->eeTask_[i]->du() = Eigen::VectorXd::Ones(6 + actRobotTqc->numJoints()) * 3.0;
 	  this->eeTask_[i]->wc() = cnoid::VectorX::Ones(6 + actRobotTqc->numJoints()) * 1e-6;
 	  this->eeTask_[i]->w() = cnoid::VectorX::Ones(6 + actRobotTqc->numJoints()) * 1e-6;
 	  this->eeTask_[i]->toSolve() = true;
