@@ -42,6 +42,12 @@ public:
         landingDgain[i] = {10,10,10,10,5,5};
         swingPgain[i] = {5,30,20,10,5,5};
         swingDgain[i] = {10,30,20,20,30,30};
+        /*supportPgain[i] = {0,0,0,0,0,0};
+        supportDgain[i] = {0,0,0,0,0,0};
+        landingPgain[i] = {0,0,0,0,0,0};
+        landingDgain[i] = {0,0,0,0,0,0};
+        swingPgain[i] = {0,0,0,0,0,0};
+        swingDgain[i] = {0,0,0,0,0,0};*/
       }else{
         supportPgain[i].resize(jointPath.numJoints(), 100.0);
         supportDgain[i].resize(jointPath.numJoints(), 100.0);
@@ -54,18 +60,16 @@ public:
     for(int i=0;i<gaitParam.eeName.size();i++){
       cnoid::Vector6 defaultD;
       if(i<NUM_LEGS){
-	defaultD << 0.0, 0.0, 0.0, 0.0, 0.0, 0.0;
+	defaultD << 60.0, 60.0, 60.0, 30.0, 30.0, 30.0;
       }else{
-	//defaultD << 0.05, 0.05, 0.05, 0.01, 0.01, 0.01; arm_gain 0.1
-	defaultD << 60, 60, 60, 30, 30, 30;
+	defaultD << 10, 10, 10, 10, 10, 10;
       }
       this->D.push_back(defaultD);
       cnoid::Vector6 defaultK;
       if(i<NUM_LEGS){
-	defaultK << 0.0, 0.0, 0.0, 0.0, 0.0, 0.0;
+	defaultK << 300.0, 300.0, 300.0, 100.0, 100.0, 100.0;
       }else{
-	//defaultK << 0.02, 0.02, 0.02, 0.02, 0.02, 0.02; arm_gain 0.1
-	defaultK << 300, 300, 300, 100, 100, 100;
+	defaultK << 50, 50, 50, 20, 20, 20;
       }
       this->K.push_back(defaultK);
     }
