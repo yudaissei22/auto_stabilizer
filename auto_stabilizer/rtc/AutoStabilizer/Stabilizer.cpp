@@ -418,11 +418,21 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
 	  // bはee_acc - dJ * dq
 	  this->eeTask_->b().block(i*6,0,6,1) = ee_acc[i] - dJdq[i];
 	  
-	  //for(int j=0;j<6;j++) tripletList_C.push_back(Eigen::Triplet<double>(j,j,1.0));
-	  for(int j=0;j<actRobotTqc->numJoints();j++){
-	    bool sign = gaitParam.genRobot->joint(j)->q() > gaitParam.actRobot->joint(j)->q();
-	    tripletList_C.push_back(Eigen::Triplet<double>(6+j,6+j,sign? 1.0 : -1.0)); // insertすると時間がかかる
-	  }
+	}
+
+	for(int i=0;i<3;i++) {
+	  bool sign = gaitParam.genRobot->rootLink()->p()[i] > gaitParam.actRobot->rootLink()->p()[i]; 
+	  tripletList_C.push_back(Eigen::Triplet<double>(i,i,sign? 1.0 : -1.0));
+	}
+
+	for(int i=0;i<3;i++) {
+	  bool sign = cnoid::rpyFromRot(gaitParam.genRobot->rootLink()->R())[i] > cnoid::rpyFromRot(gaitParam.genRobot->rootLink()->R())[i];
+	  tripletList_C.push_back(Eigen::Triplet<double>(3+i,3+i,sign? 1.0 : -1.0));
+	}
+	
+	for(int i=0;i<actRobotTqc->numJoints();i++){
+	    bool sign = gaitParam.genRobot->joint(i)->q() > gaitParam.actRobot->joint(i)->q();
+	    tripletList_C.push_back(Eigen::Triplet<double>(6+i,6+i,sign? 1.0 : -1.0)); // insertすると時間がかかる
 	}
 
 	this->eeTask_->A().setFromTriplets(tripletList_A.begin(), tripletList_A.end());
