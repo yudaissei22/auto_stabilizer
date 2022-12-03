@@ -60,33 +60,29 @@ public:
     for(int i=0;i<gaitParam.eeName.size();i++){
       cnoid::Vector6 defaultD;
       if(i<NUM_LEGS){
-	defaultD << 60.0, 60.0, 60.0, 30.0, 30.0, 30.0;
-      }else{
 	defaultD << 10, 10, 10, 10, 10, 10;
+      }else{
+	defaultD << 100, 100, 100, 100, 100, 100;
       }
       this->D.push_back(defaultD);
       cnoid::Vector6 defaultK;
       if(i<NUM_LEGS){
-	defaultK << 300.0, 300.0, 300.0, 100.0, 100.0, 100.0;
+	defaultK << 50, 50, 50, 20, 20, 20;
       }else{
 	defaultK << 50, 50, 50, 20, 20, 20;
       }
       this->K.push_back(defaultK);
     }
 
-    this->eeTask_.clear();
-    for(int i=0;i<gaitParam.eeName.size();i++){
-      this->eeTask_.push_back(std::make_shared<prioritized_qp_osqp::Task>());
-    }
   }
 protected:
   // 計算高速化のためのキャッシュ. クリアしなくても別に副作用はない.
   // for calcWrench
   mutable std::shared_ptr<prioritized_qp_osqp::Task> constraintTask_ = std::make_shared<prioritized_qp_osqp::Task>();
-  mutable std::shared_ptr<prioritized_qp_osqp::Task> tgtZmpTask_ = std::make_shared<prioritized_qp_osqp::Task>();;
-  mutable std::shared_ptr<prioritized_qp_osqp::Task> copTask_ = std::make_shared<prioritized_qp_osqp::Task>();;
+  mutable std::shared_ptr<prioritized_qp_osqp::Task> tgtZmpTask_ = std::make_shared<prioritized_qp_osqp::Task>();
+  mutable std::shared_ptr<prioritized_qp_osqp::Task> copTask_ = std::make_shared<prioritized_qp_osqp::Task>();
   // for calcTorque
-  mutable std::vector<std::shared_ptr<prioritized_qp_osqp::Task>> eeTask_;
+  mutable std::shared_ptr<prioritized_qp_osqp::Task> eeTask_ = std::make_shared<prioritized_qp_osqp::Task>();
 public:
   void initStabilizerOutput(const GaitParam& gaitParam,
                             cpp_filters::TwoPointInterpolator<cnoid::Vector3>& o_stOffsetRootRpy, cnoid::Vector3& o_stTargetZmp, std::vector<cpp_filters::TwoPointInterpolator<double> >& o_stServoPGainPercentage, std::vector<cpp_filters::TwoPointInterpolator<double> >& o_stServoDGainPercentage) const;
