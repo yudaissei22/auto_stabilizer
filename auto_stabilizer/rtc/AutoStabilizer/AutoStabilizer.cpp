@@ -1133,7 +1133,9 @@ bool AutoStabilizer::startStabilizer(void){
   }
 }
 bool AutoStabilizer::stopStabilizer(void){
-  if(this->mode_.setNextTransition(ControlMode::STOP_ST)){
+  std::cerr << "[" << this->m_profile.instance_name << "] Position PD gain is 0. Please servo Off" << std::endl;
+  /*if(this->mode_.setNextTransition(ControlMode::STOP_ST)){
+    std::cerr << "[" << this->m_profile.instance_name << "] Position PD gain is 0. Please servo Off" << std::endl;
     std::cerr << "[" << m_profile.instance_name << "] stop ST" << std::endl;
     while (this->mode_.now() != ControlMode::MODE_ABC) usleep(1000);
     usleep(1000);
@@ -1141,7 +1143,8 @@ bool AutoStabilizer::stopStabilizer(void){
   }else{
     std::cerr << "[" << this->m_profile.instance_name << "] Please start AutoBalancer" << std::endl;
     return false;
-  }
+  }*/
+  return false;
 }
 
 bool AutoStabilizer::startImpedanceController(const std::string& i_name){
