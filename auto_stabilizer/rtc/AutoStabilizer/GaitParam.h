@@ -151,6 +151,8 @@ public:
   Eigen::VectorXd prev_q;
   Eigen::VectorXd prev_dq;
   std::vector<cnoid::Vector6> eePoseDiffLocal_prev;
+  std::vector<cnoid::Position> abcEETargetPosed; // 要素数と順序はeeNameと同じ.generate frame.
+  std::vector<cnoid::Position> abcEETargetPosedd; // 要素数と順序はeeNameと同じ.generate frame.
 
   // FullbodyIKSolver
   cnoid::BodyPtr genRobot; // output. 関節位置制御用
@@ -207,6 +209,8 @@ public:
     abcEETargetPose.push_back(cnoid::Position::Identity());
     stEETargetWrench.push_back(cnoid::Vector6::Zero());
     eePoseDiffLocal_prev.push_back(cnoid::Vector6::Zero());
+    abcEETargetPosed.push_back(cnoid::Position::Identity());
+    abcEETargetPosedd.push_back(cnoid::Position::Identity());
   }
 
   // startAutoStabilizer時に呼ばれる

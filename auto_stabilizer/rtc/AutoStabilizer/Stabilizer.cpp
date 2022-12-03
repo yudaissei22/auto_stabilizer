@@ -273,7 +273,7 @@ bool Stabilizer::calcWrench(const GaitParam& gaitParam, const cnoid::Vector3& tg
 }
 
 bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActState, cnoid::BodyPtr& actRobotTqc, const std::vector<cnoid::Vector6>& tgtEEWrench /* 要素数EndEffector数. generate座標系. EndEffector origin*/,
-                            std::vector<cpp_filters::TwoPointInterpolator<double> >& o_stServoPGainPercentage, std::vector<cpp_filters::TwoPointInterpolator<double> >& o_stServoDGainPercentage, Eigen::VectorXd& prev_q, Eigen::VectorXd& prev_dq, std::vector<cnoid::Vector6>& eePoseDiff_prev) const{
+                            std::vector<cpp_filters::TwoPointInterpolator<double> >& o_stServoPGainPercentage, std::vector<cpp_filters::TwoPointInterpolator<double> >& o_stServoDGainPercentage, Eigen::VectorXd& prev_q, Eigen::VectorXd& prev_dq, std::vector<cnoid::Vector6>& eePoseDiff_prev, std::vector<cnoid::Position>& eeTargetPosed, std::vector<cnoid::Position>& eeTargetPosedd) const{
 
   if(!useActState){
     for(int i=0;i<actRobotTqc->numJoints();i++) actRobotTqc->joint(i)->u() = 0.0;
@@ -336,12 +336,9 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
       // ee_act
       {
 	// ee_act_ref
-	// gaitParam.abcEETargetPose を微分してもよい。
-        gaitParam.genRobot->calcForwardKinematics(true, true); // ee_acc_ref がgenRobot->link(gaitParam.eeParentLink[i])->dv(), dw()に格納される
+        gaitParam.genRobot->calcForwardKinematics(true, true); // ee_acc_ref がgenRobot->link(gaitParam.eeParentLink[i])->dv(), dw()に格納される. がこれは現在角度、角速度から来るコリオリ力
 	for(int i=0;i<gaitParam.eeName.size();i++){
-	  ee_acc[i][0] = gaitParam.genRobot->link(gaitParam.eeParentLink[i])->dv()[0];
-	  ee_acc[i][1] = gaitParam.genRobot->link(gaitParam.eeParentLink[i])->dv()[1];
-	  ee_acc[i][2] = gaitParam.genRobot->link(gaitParam.eeParentLink[i])->dv()[2];
+	  ee_acc[i].head<3>() = (gaitParam.abcEETargetPose[i].translation() - 2 * eeTargetPosed[i].translation() + eeTargetPosedd[i].translation()) / dt / dt;
 	  ee_acc[i][3] = gaitParam.genRobot->link(gaitParam.eeParentLink[i])->dw()[0];
 	  ee_acc[i][4] = gaitParam.genRobot->link(gaitParam.eeParentLink[i])->dw()[1];
 	  ee_acc[i][5] = gaitParam.genRobot->link(gaitParam.eeParentLink[i])->dw()[2];
@@ -558,6 +555,11 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
   for(int i=0;i<gaitParam.genRobot->numJoints();i++){
     prev_q[i] = gaitParam.genRobot->joint(i)->q();
     prev_dq[i] = gaitParam.genRobot->joint(i)->dq();
+  }
+
+  for(int i=0;i<gaitParam.eeName.size();i++){
+    eeTargetPosedd[i] = eeTargetPosed[i];
+    eeTargetPosed[i] = gaitParam.abcEETargetPose[i];
   }
   
   return true;
