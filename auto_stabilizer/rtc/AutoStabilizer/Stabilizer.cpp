@@ -339,9 +339,7 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
         gaitParam.genRobot->calcForwardKinematics(true, true); // ee_acc_ref がgenRobot->link(gaitParam.eeParentLink[i])->dv(), dw()に格納される. がこれは現在角度、角速度から来るコリオリ力
 	for(int i=0;i<gaitParam.eeName.size();i++){
 	  ee_acc[i].head<3>() = (gaitParam.abcEETargetPose[i].translation() - 2 * eeTargetPosed[i].translation() + eeTargetPosedd[i].translation()) / dt / dt;
-	  ee_acc[i][3] = gaitParam.genRobot->link(gaitParam.eeParentLink[i])->dw()[0];
-	  ee_acc[i][4] = gaitParam.genRobot->link(gaitParam.eeParentLink[i])->dw()[1];
-	  ee_acc[i][5] = gaitParam.genRobot->link(gaitParam.eeParentLink[i])->dw()[2];
+	  ee_acc[i].tail<3>() = (cnoid::rpyFromRot(eeTargetPosed[i].linear().transpose() * gaitParam.abcEETargetPose[i].linear()) - cnoid::rpyFromRot(eeTargetPosedd[i].linear().transpose() * eeTargetPosed[i].linear())) / dt / dt;
 	}
 
 	// K (ee_p_ref - ee_p_act) + D (ee_vel_ref - ee_vel_act)
@@ -350,7 +348,7 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
 	  cnoid::Vector6 eePoseDiffLocal; // endEfector frame
 	  eePoseDiffLocal.head<3>() = eeR.transpose() * (gaitParam.refEEPose[i].translation() - gaitParam.actEEPose[i].translation());
 	  eePoseDiffLocal.tail<3>() = cnoid::rpyFromRot(gaitParam.actEEPose[i].linear().transpose()*gaitParam.refEEPose[i].linear());
-	  cnoid::Vector6 eeVelDiffLocal = (eePoseDiffLocal - eePoseDiff_prev[i]);
+	  cnoid::Vector6 eeVelDiffLocal = (eePoseDiffLocal - eePoseDiff_prev[i]) / dt;
 	  cnoid::Vector6 eePoseDiffGainLocal;
 	  cnoid::Vector6 eeVelDiffGainLocal;
 	  for(int j=0;j<6;j++){

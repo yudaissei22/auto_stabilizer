@@ -36,18 +36,18 @@ public:
         // swingPgain[i] = {5,10,10,5,0.1,0.1};
         // swingDgain[i] = {10,20,20,10,10,10};
         // 下はもとのauto_stabilizerの値. ゲインが低すぎて、go-velocity 0 0 0のときに前に進んでいってしまう
-        supportPgain[i] = {5,15,10,5,0.2,0.2};
+        /*supportPgain[i] = {5,15,10,5,0.2,0.2};
         supportDgain[i] = {10,20,20,10,5,5};
         landingPgain[i] = {5,15,1,1,0.2,0.2};
         landingDgain[i] = {10,10,10,10,5,5};
         swingPgain[i] = {5,30,20,10,5,5};
-        swingDgain[i] = {10,30,20,20,30,30};
-        /*supportPgain[i] = {0,0,0,0,0,0};
+        swingDgain[i] = {10,30,20,20,30,30};*/
+        supportPgain[i] = {0,0,0,0,0,0};
         supportDgain[i] = {0,0,0,0,0,0};
         landingPgain[i] = {0,0,0,0,0,0};
         landingDgain[i] = {0,0,0,0,0,0};
         swingPgain[i] = {0,0,0,0,0,0};
-        swingDgain[i] = {0,0,0,0,0,0};*/
+        swingDgain[i] = {0,0,0,0,0,0};
       }else{
         supportPgain[i].resize(jointPath.numJoints(), 100.0);
         supportDgain[i].resize(jointPath.numJoints(), 100.0);
@@ -62,7 +62,7 @@ public:
       if(i<NUM_LEGS){
 	defaultD << 10, 10, 10, 10, 10, 10;
       }else{
-	defaultD << 100, 100, 100, 100, 100, 100;
+	defaultD << 10, 10, 10, 10, 10, 10;
       }
       this->D.push_back(defaultD);
       cnoid::Vector6 defaultK;
