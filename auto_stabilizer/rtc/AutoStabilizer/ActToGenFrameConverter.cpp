@@ -8,6 +8,7 @@ bool ActToGenFrameConverter::convertFrame(const GaitParam& gaitParam, double dt,
                                           cnoid::BodyPtr& actRobot, std::vector<cnoid::Position>& o_actEEPose, std::vector<cnoid::Vector6>& o_actEEWrench, cpp_filters::FirstOrderLowPassFilter<cnoid::Vector3>& o_actCogVel) const {
 
   cnoid::Vector3 actCogPrev = actRobot->centerOfMass();
+  cnoid::Position actRootPrev = actRobot->rootLink()->T();
 
   {
     // FootOrigin座標系を用いてactRobotRawをgenerate frameに投影しactRobotとする
@@ -67,6 +68,8 @@ bool ActToGenFrameConverter::convertFrame(const GaitParam& gaitParam, double dt,
       actCogVel = gaitParam.actCogVel.value();
     }else{
       actCogVel = (actRobot->centerOfMass() - actCogPrev) / dt;
+      actRobot->rootLink()->v() = (actRobot->rootLink()->translation() - actRootPrev.translation()) / dt;
+      actRobot->rootLink()->w() = cnoid::rpyFromRot(actRobot->rootLink()->R() * actRootPrev.linear().transpose()) / dt;
     }
   }
 
