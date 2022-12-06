@@ -22,8 +22,11 @@ public:
   double landing2SupportTransitionTime = 0.1; // [s]. 0より大きい
   double support2SwingTransitionTime = 0.2; // [s]. 0より大きい
 
-  std::vector<cnoid::Vector6> D; // 要素数EndEffectors. EndEffector frame. endEffector origin. 0以上
-  std::vector<cnoid::Vector6> K; // 要素数EndEffectors. EndEffector frame. endEffector origin. 0以上
+  std::vector<cnoid::Vector6> ee_K; // 要素数EndEffectors. EndEffector frame. endEffector origin. 0以上
+  std::vector<cnoid::Vector6> ee_D; // 要素数EndEffectors. EndEffector frame. endEffector origin. 0以上
+  cnoid::Vector3 com_K; // generate frame. 
+  cnoid::Vector3 com_D; // generate frame.
+  cnoid::Vector6 root_K; // generate frame.
 
   void init(const GaitParam& gaitParam, cnoid::BodyPtr& actRobotTqc){
     for(int i=0;i<NUM_LEGS;i++){
@@ -58,22 +61,30 @@ public:
       }
     }
     for(int i=0;i<gaitParam.eeName.size();i++){
-      cnoid::Vector6 defaultD;
+      cnoid::Vector6 defaultEED;
       if(i<NUM_LEGS){
-	defaultD << 10, 10, 10, 10, 10, 10;
+	defaultEED << 10, 10, 10, 10, 10, 10;
       }else{
-	defaultD << 10, 10, 10, 10, 10, 10;
+	defaultEED << 10, 10, 10, 10, 10, 10;
       }
-      this->D.push_back(defaultD);
-      cnoid::Vector6 defaultK;
+      this->ee_D.push_back(defaultEED);
+      cnoid::Vector6 defaultEEK;
       if(i<NUM_LEGS){
-	defaultK << 50, 50, 50, 20, 20, 20;
+	defaultEEK << 50, 50, 50, 20, 20, 20;
       }else{
-	defaultK << 50, 50, 50, 20, 20, 20;
+	defaultEEK << 50, 50, 50, 20, 20, 20;
       }
-      this->K.push_back(defaultK);
+      this->ee_K.push_back(defaultEEK);
     }
-
+    cnoid::Vector3 defaultComK;
+    defaultComK << 50, 50, 50;
+    this->com_K = defaultComK;
+    cnoid::Vector3 defaultComD;
+    defaultComD << 10, 10, 10;
+    this->com_D = defaultComD;
+    cnoid::Vector6 defaultRootK;
+    defaultRootK << 1, 1, 1, 1, 1, 1;
+    this->root_K = defaultRootK;
   }
 protected:
   // 計算高速化のためのキャッシュ. クリアしなくても別に副作用はない.

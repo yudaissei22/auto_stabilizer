@@ -359,8 +359,8 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
 	    cnoid::Vector6 eePoseDiffGainLocal;
 	    cnoid::Vector6 eeVelDiffGainLocal;
 	    for(int j=0;j<6;j++){
-	      eePoseDiffGainLocal[j] = this->K[i][j] * eePoseDiffLocal[j];
-	      eeVelDiffGainLocal[j] = this->D[i][j] * eeVelDiffLocal[j];
+	      eePoseDiffGainLocal[j] = this->ee_K[i][j] * eePoseDiffLocal[j];
+	      eeVelDiffGainLocal[j] = this->ee_D[i][j] * eeVelDiffLocal[j];
 	    }
 	    ee_acc[i].head<3>() += eeR * eePoseDiffGainLocal.head<3>(); // generate frame
 	    ee_acc[i].tail<3>() += eeR * eePoseDiffGainLocal.tail<3>(); // generate frame
@@ -448,7 +448,10 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
 	cnoid::Vector3 com_acc;
 	// com_act
 	{
-	  com_acc = gaitParam.genCogAcc + 0 * (gaitParam.genCog - actRobotTqc->centerOfMass()) + 1 * (gaitParam.genCogVel - gaitParam.actCogVel.value());
+	  cnoid::Vector3 actCog = actRobotTqc->centerOfMass();
+	  for(int i=0;i<3;i++){
+	    com_acc[i] = gaitParam.genCogAcc[i] + this->com_K[i] * (gaitParam.genCog[i] - actCog[i]) + this->com_D[i] * (gaitParam.genCogVel[i] - gaitParam.actCogVel.value()[i]);
+	  }
 	}
 
 	cnoid::Vector3 dJdq;
@@ -497,8 +500,13 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
 	  tripletList_A.push_back(Eigen::Triplet<double>(i,i,1.0));
 	}
 	this->rootTask_->b() = cnoid::Vector6::Zero();
-	this->rootTask_->b().head<3>() = 1 * (gaitParam.genRobot->rootLink()->p() - gaitParam.actRobot->rootLink()->p());
-	this->rootTask_->b().tail<3>() = 1 * cnoid::rpyFromRot(gaitParam.genRobot->rootLink()->R() * gaitParam.actRobot->rootLink()->R().transpose());
+	for (int i=0;i<3;i++){
+	  this->rootTask_->b()[i] = this->root_K[i] * (gaitParam.genRobot->rootLink()->p()[i] - gaitParam.actRobot->rootLink()->p()[i]);
+	}
+	for (int i=0;i<3;i++){
+	  this->rootTask_->b()[i+3] = this->root_K[i+3] * cnoid::rpyFromRot(gaitParam.genRobot->rootLink()->R() * gaitParam.actRobot->rootLink()->R().transpose())[i];
+	}
+	
 	this->rootTask_->wa() = cnoid::Vector6::Ones() * 1e-3;
 	this->rootTask_->C() = Eigen::SparseMatrix<double, Eigen::RowMajor>(6 + actRobotTqc->numJoints(),6 + actRobotTqc->numJoints());
 	std::vector<Eigen::Triplet<double> > tripletList_C;
@@ -512,8 +520,7 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
 	this->rootTask_->toSolve() = true;
 	this->rootTask_->settings().check_termination = 15; // default 25. 高速化
 	this->rootTask_->settings().verbose = 0;
-      }
-      
+      }      
 
       // ddqを計算
       std::vector<std::shared_ptr<prioritized_qp_base::Task> > tasks;
