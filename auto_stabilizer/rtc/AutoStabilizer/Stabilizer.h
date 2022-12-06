@@ -82,7 +82,7 @@ protected:
   mutable std::shared_ptr<prioritized_qp_osqp::Task> tgtZmpTask_ = std::make_shared<prioritized_qp_osqp::Task>();
   mutable std::shared_ptr<prioritized_qp_osqp::Task> copTask_ = std::make_shared<prioritized_qp_osqp::Task>();
   // for calcTorque
-  mutable std::shared_ptr<prioritized_qp_osqp::Task> eeTask_ = std::make_shared<prioritized_qp_osqp::Task>();
+  mutable std::shared_ptr<prioritized_qp_osqp::Task> eeComTask_ = std::make_shared<prioritized_qp_osqp::Task>();
   mutable std::shared_ptr<prioritized_qp_osqp::Task> rootTask_ = std::make_shared<prioritized_qp_osqp::Task>();
 public:
   void initStabilizerOutput(const GaitParam& gaitParam,
