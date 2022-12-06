@@ -387,6 +387,7 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
 	    actRobotTqc->joint(i)->ddq() = 0.0;
 	  }
 	  actRobotTqc->calcForwardKinematics(true, true); // dJ * dq がactRobotTqc->link(gaitParam.eeParentLink[i])->dv(), dw()に格納される
+	  actRobotTqc->calcCenterOfMass();
 	  for(int i=0;i<gaitParam.eeName.size();i++){
 	    dJdq[i][0] = actRobotTqc->link(gaitParam.eeParentLink[i])->dv()[0];
 	    dJdq[i][1] = actRobotTqc->link(gaitParam.eeParentLink[i])->dv()[1];
@@ -420,7 +421,7 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
 	  
 	  }
 
-	  for(int i=0;i<3;i++) {
+	  /*	  for(int i=0;i<3;i++) {
 	    bool sign = gaitParam.genRobot->rootLink()->p()[i] > gaitParam.actRobot->rootLink()->p()[i]; 
 	    eeComTripletList_C.push_back(Eigen::Triplet<double>(i,i,sign? 1.0 : -1.0));
 	  }
@@ -428,7 +429,7 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
 	  for(int i=0;i<3;i++) {
 	    bool sign = cnoid::rpyFromRot(gaitParam.genRobot->rootLink()->R())[i] > cnoid::rpyFromRot(gaitParam.actRobot->rootLink()->R())[i];
 	    eeComTripletList_C.push_back(Eigen::Triplet<double>(3+i,3+i,sign? 1.0 : -1.0));
-	  }
+	    }*/
 	
 	  for(int i=0;i<actRobotTqc->numJoints();i++){
 	    bool sign = gaitParam.genRobot->joint(i)->q() > gaitParam.actRobot->joint(i)->q();
@@ -447,8 +448,7 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
 	cnoid::Vector3 com_acc;
 	// com_act
 	{
-	  com_acc = gaitParam.genCogAcc;
-	  // TODO フィードバック
+	  com_acc = gaitParam.genCogAcc + 0 * (gaitParam.genCog - actRobotTqc->centerOfMass()) + 1 * (gaitParam.genCogVel - gaitParam.actCogVel.value());
 	}
 
 	cnoid::Vector3 dJdq;
@@ -467,15 +467,15 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
 	      eeComTripletList_A.push_back(Eigen::Triplet<double>(6 * gaitParam.eeName.size() + j,6+i,CMJ(j,i)));
 	    }
 	  }
-	 for (int i=0;i<6;i++) {
+	  for (int i=0;i<6;i++) {
 	    for(int j=0;j<3;j++) {
 	      eeComTripletList_A.push_back(Eigen::Triplet<double>(6 * gaitParam.eeName.size() + j,i,CMJ(j,i + actRobotTqc->numJoints())));
 	    }
 	  }
 	 this->eeComTask_->b().tail<3>() = com_acc;
 	}
-	  
       }
+      
       this->eeComTask_->A().setFromTriplets(eeComTripletList_A.begin(), eeComTripletList_A.end());
       this->eeComTask_->C().setFromTriplets(eeComTripletList_C.begin(), eeComTripletList_C.end());
       this->eeComTask_->wa() = Eigen::VectorXd::Ones(6 * gaitParam.eeName.size() + 3)* 1e-3;
@@ -486,7 +486,6 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
       this->eeComTask_->toSolve() = true;
       this->eeComTask_->settings().check_termination = 15; // default 25. 高速化
       this->eeComTask_->settings().verbose = 0;
-
 
       // rootTask
       // Jacobianもgenerate frameなのでdJ * dq = 0
