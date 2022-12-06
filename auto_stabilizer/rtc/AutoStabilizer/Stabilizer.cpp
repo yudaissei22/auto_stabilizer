@@ -346,7 +346,7 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
 	  // ee_act_ref
 	  for(int i=0;i<gaitParam.eeName.size();i++){
 	    ee_acc[i].head<3>() = (gaitParam.abcEETargetPose[i].translation() - 2 * eeTargetPosed[i].translation() + eeTargetPosedd[i].translation()) / dt / dt;
-	    ee_acc[i].tail<3>() = (cnoid::rpyFromRot(eeTargetPosed[i].linear().transpose() * gaitParam.abcEETargetPose[i].linear()) - cnoid::rpyFromRot(eeTargetPosedd[i].linear().transpose() * eeTargetPosed[i].linear())) / dt / dt; // TODO
+	    ee_acc[i].tail<3>() = (cnoid::rpyFromRot(gaitParam.abcEETargetPose[i].linear() * eeTargetPosed[i].linear().transpose()) - cnoid::rpyFromRot(eeTargetPosed[i].linear() * eeTargetPosedd[i].linear().transpose())) / dt / dt; // TODO
 	  }
 
 	  // K (ee_p_ref - ee_p_act) + D (ee_vel_ref - ee_vel_act)
