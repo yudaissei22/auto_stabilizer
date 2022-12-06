@@ -375,10 +375,10 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
 	// dJ * dqを求める
 	{
 	  actRobotTqc->rootLink()->T() = gaitParam.actRobot->rootLink()->T();
-	  actRobotTqc->rootLink()->v() = cnoid::Vector3::Zero(); // TODO
-	  actRobotTqc->rootLink()->w() = cnoid::Vector3::Zero(); // TODO
-	  actRobotTqc->rootLink()->dv() = cnoid::Vector3::Zero(); // TODO
-	  actRobotTqc->rootLink()->dw() = cnoid::Vector3::Zero(); // TODO
+	  actRobotTqc->rootLink()->v() = gaitParam.actRootVel.value().head<3>();
+	  actRobotTqc->rootLink()->w() = gaitParam.actRootVel.value().tail<3>();
+	  actRobotTqc->rootLink()->dv() = cnoid::Vector3::Zero();
+	  actRobotTqc->rootLink()->dw() = cnoid::Vector3::Zero();
 	  for(int i=0;i<actRobotTqc->numJoints();i++){
 	    actRobotTqc->joint(i)->q() = gaitParam.actRobot->joint(i)->q();
 	    // dqとしてactualを使うと振動する可能性があるが、referenceを使うと外力による駆動を考慮できない
@@ -536,8 +536,8 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
       }else {
 	// ddqを代入
 	actRobotTqc->rootLink()->T() = gaitParam.actRobot->rootLink()->T();
-	actRobotTqc->rootLink()->v() = gaitParam.actRobot->rootLink()->v();
-	actRobotTqc->rootLink()->w() = gaitParam.actRobot->rootLink()->w();
+	actRobotTqc->rootLink()->v() = gaitParam.actRootVel.value().head<3>();
+	actRobotTqc->rootLink()->w() = gaitParam.actRootVel.value().tail<3>();
 	actRobotTqc->rootLink()->dv() = result.block(0,0,3,1);//  << result[0], result[1], result[2];
 	actRobotTqc->rootLink()->dw() = result.block(3,0,3,1);// << result[3], result[4], result[5];
 	for(int i=0;i<actRobotTqc->numJoints();i++){

@@ -5,7 +5,7 @@
 #include <cnoid/EigenUtil>
 
 bool ActToGenFrameConverter::convertFrame(const GaitParam& gaitParam, double dt,// input
-                                          cnoid::BodyPtr& actRobot, std::vector<cnoid::Position>& o_actEEPose, std::vector<cnoid::Vector6>& o_actEEWrench, cpp_filters::FirstOrderLowPassFilter<cnoid::Vector3>& o_actCogVel) const {
+                                          cnoid::BodyPtr& actRobot, std::vector<cnoid::Position>& o_actEEPose, std::vector<cnoid::Vector6>& o_actEEWrench, cpp_filters::FirstOrderLowPassFilter<cnoid::Vector3>& o_actCogVel, cpp_filters::FirstOrderLowPassFilter<cnoid::Vector6>& o_actRootVel) const {
 
   cnoid::Vector3 actCogPrev = actRobot->centerOfMass();
   cnoid::Position actRootPrev = actRobot->rootLink()->T();
@@ -57,6 +57,7 @@ bool ActToGenFrameConverter::convertFrame(const GaitParam& gaitParam, double dt,
   }
 
   cnoid::Vector3 actCogVel;
+  cnoid::Vector6 actRootVel;
   {
     // actCogを計算
     bool genContactState_changed = false;
@@ -66,10 +67,11 @@ bool ActToGenFrameConverter::convertFrame(const GaitParam& gaitParam, double dt,
     if(genContactState_changed){
       //座標系が飛んでいるので、gaitParam.actCogVel は前回の周期の値をそのままつかう
       actCogVel = gaitParam.actCogVel.value();
+      actRootVel = gaitParam.actRootVel.value();
     }else{
       actCogVel = (actRobot->centerOfMass() - actCogPrev) / dt;
-      actRobot->rootLink()->v() = (actRobot->rootLink()->translation() - actRootPrev.translation()) / dt;
-      actRobot->rootLink()->w() = cnoid::rpyFromRot(actRobot->rootLink()->R() * actRootPrev.linear().transpose()) / dt;
+      actRootVel.head<3>() = (actRobot->rootLink()->translation() - actRootPrev.translation()) / dt;
+      actRootVel.tail<3>() = cnoid::rpyFromRot(actRobot->rootLink()->R() * actRootPrev.linear().transpose()) / dt;
     }
   }
 
@@ -77,8 +79,10 @@ bool ActToGenFrameConverter::convertFrame(const GaitParam& gaitParam, double dt,
   o_actEEWrench = actEEWrench;
   if(this->isInitial){
     o_actCogVel.reset(cnoid::Vector3::Zero());
+    o_actRootVel.reset(cnoid::Vector6::Zero());
   } else {
     o_actCogVel.passFilter(actCogVel, dt);
+    o_actRootVel.passFilter(actRootVel, dt);
   }
 
   this->isInitial = false;
