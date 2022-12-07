@@ -16,7 +16,7 @@ void Stabilizer::initStabilizerOutput(const GaitParam& gaitParam,
 }
 
 bool Stabilizer::execStabilizer(const GaitParam& gaitParam, double dt, bool useActState,
-                                cpp_filters::TwoPointInterpolator<cnoid::Vector3>& o_stOffsetRootRpy, cnoid::Position& o_stTargetRootPose, cnoid::Vector3& o_stTargetZmp, std::vector<cnoid::Vector6>& o_stEETargetWrench) const{
+                                cpp_filters::TwoPointInterpolator<cnoid::Vector3>& o_stOffsetRootRpy, cnoid::Position& o_stTargetRootPose, cnoid::Vector3& o_stTargetZmp, std::vector<cnoid::Vector6>& o_stEETargetWrench, cnoid::Vector3& o_stTargetCogAcc) const{
   // - root attitude control
   // - 現在のactual重心位置から、目標ZMPを計算
   // - 目標ZMPを満たすように目標足裏反力を計算
@@ -32,7 +32,7 @@ bool Stabilizer::execStabilizer(const GaitParam& gaitParam, double dt, bool useA
   // 現在のactual重心位置から、目標ZMPを計算
   cnoid::Vector3 tgtForce; // generate frame
   this->calcZMP(gaitParam, dt, useActState, // input
-                o_stTargetZmp, tgtForce); // output
+                o_stTargetZmp, tgtForce, o_stTargetCogAcc); // output
 
   // 目標ZMPを満たすように目標EndEffector反力を計算
   this->calcWrench(gaitParam, o_stTargetZmp, tgtForce, useActState,// input
@@ -70,7 +70,7 @@ bool Stabilizer::moveBasePosRotForBodyRPYControl(double dt, const GaitParam& gai
 }
 
 bool Stabilizer::calcZMP(const GaitParam& gaitParam, double dt, bool useActState,
-                         cnoid::Vector3& o_tgtZmp, cnoid::Vector3& o_tgtForce) const{
+                         cnoid::Vector3& o_tgtZmp, cnoid::Vector3& o_tgtForce, cnoid::Vector3& o_tgtCogAcc) const{
   cnoid::Vector3 cog = useActState ? gaitParam.actCog : gaitParam.genCog;
   cnoid::Vector3 cogVel = useActState ? gaitParam.actCogVel.value() : gaitParam.genCogVel;
   cnoid::Vector3 DCM = cog + cogVel / gaitParam.omega;
@@ -105,6 +105,7 @@ bool Stabilizer::calcZMP(const GaitParam& gaitParam, double dt, bool useActState
 
   o_tgtZmp = tgtZmp;
   o_tgtForce = tgtForce;
+  o_tgtCogAcc = tgtCogAcc;
   return true;
 }
 
@@ -450,7 +451,7 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
 	{
 	  cnoid::Vector3 actCog = actRobotTqc->centerOfMass();
 	  for(int i=0;i<3;i++){
-	    com_acc[i] = gaitParam.genCogAcc[i] + this->com_K[i] * (gaitParam.genCog[i] - actCog[i]) + this->com_D[i] * (gaitParam.genCogVel[i] - gaitParam.actCogVel.value()[i]);
+	    com_acc[i] = gaitParam.stTargetCogAcc[i] + this->com_K[i] * (gaitParam.genCog[i] - actCog[i]) + this->com_D[i] * (gaitParam.genCogVel[i] - gaitParam.actCogVel.value()[i]); // TODO genCogではなくstで出されたcogをつかうこと
 	  }
 	}
 
@@ -458,8 +459,22 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
 	// dJ * dqを求める
 	{
 	  dJdq = cnoid::Vector3::Zero();
-	  // TODO 厳密な値
-	  // actRobotのcogを2回微分するのは避けたい & コリオリの影響は小さい
+	  actRobotTqc->rootLink()->T() = gaitParam.actRobot->rootLink()->T();
+	  actRobotTqc->rootLink()->v() = gaitParam.actRootVel.value().head<3>();
+	  actRobotTqc->rootLink()->w() = gaitParam.actRootVel.value().tail<3>();
+	  actRobotTqc->rootLink()->dv() = cnoid::Vector3::Zero();
+	  actRobotTqc->rootLink()->dw() = cnoid::Vector3::Zero();
+	  for(int i=0;i<actRobotTqc->numJoints();i++){
+	    actRobotTqc->joint(i)->q() = gaitParam.actRobot->joint(i)->q();
+	    // dqとしてactualを使うと振動する可能性があるが、referenceを使うと外力による駆動を考慮できない
+	    // actRobotTqc->joint(i)->dq() = (gaitParam.genRobot->joint(i)->q() - prev_q[i]) / dt;
+	    actRobotTqc->joint(i)->dq() = gaitParam.actRobot->joint(i)->dq();
+	    actRobotTqc->joint(i)->ddq() = 0.0;
+	  }
+	  actRobotTqc->calcForwardKinematics(true, true);
+	  actRobotTqc->calcCenterOfMass();
+	  cnoid::Vector6 virtualWrench = cnoid::calcInverseDynamics(actRobotTqc->rootLink());
+	  dJdq = virtualWrench.head<3>() / gaitParam.actRobot->mass();
 	}
 
 	{ // comTaskを作る
@@ -475,7 +490,7 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
 	      eeComTripletList_A.push_back(Eigen::Triplet<double>(6 * gaitParam.eeName.size() + j,i,CMJ(j,i + actRobotTqc->numJoints())));
 	    }
 	  }
-	 this->eeComTask_->b().tail<3>() = com_acc;
+	  this->eeComTask_->b().tail<3>() = com_acc - dJdq;
 	}
       }
       

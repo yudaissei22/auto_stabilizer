@@ -154,6 +154,7 @@ public:
   std::vector<cnoid::Vector6> eePoseDiffLocal_prev;
   std::vector<cnoid::Position> abcEETargetPosed; // 要素数と順序はeeNameと同じ.generate frame.
   std::vector<cnoid::Position> abcEETargetPosedd; // 要素数と順序はeeNameと同じ.generate frame.
+  cnoid::Vector3 stTargetCogAcc = cnoid::Vector3::Zero(); // generate frame. stで計算された目標重心加速度
 
   // FullbodyIKSolver
   cnoid::BodyPtr genRobot; // output. 関節位置制御用
