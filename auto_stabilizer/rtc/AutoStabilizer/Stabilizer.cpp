@@ -416,6 +416,13 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
 	    }
 	  
 	    for(int j=0;j<6;j++) eeComTripletList_A.push_back(Eigen::Triplet<double>(j + 6*i,j,1.0)); // insertすると時間がかかる
+	    cnoid::Vector3 dp = (actRobotTqc->link(gaitParam.eeParentLink[i])->T() * gaitParam.eeLocalT[i]).translation() - actRobotTqc->rootLink()->p();
+	    eeComTripletList_A.push_back(Eigen::Triplet<double>(0 + 6*i,4, dp[2]));
+	    eeComTripletList_A.push_back(Eigen::Triplet<double>(0 + 6*i,5,-dp[1]));
+	    eeComTripletList_A.push_back(Eigen::Triplet<double>(1 + 6*i,3,-dp[2]));
+	    eeComTripletList_A.push_back(Eigen::Triplet<double>(1 + 6*i,5, dp[0]));
+	    eeComTripletList_A.push_back(Eigen::Triplet<double>(2 + 6*i,3, dp[1]));
+	    eeComTripletList_A.push_back(Eigen::Triplet<double>(2 + 6*i,4,-dp[0]));
 
 	    // bはee_acc - dJ * dq
 	    this->eeComTask_->b().block(i*6,0,6,1) = ee_acc[i] - dJdq[i];
@@ -496,10 +503,10 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
       
       this->eeComTask_->A().setFromTriplets(eeComTripletList_A.begin(), eeComTripletList_A.end());
       this->eeComTask_->C().setFromTriplets(eeComTripletList_C.begin(), eeComTripletList_C.end());
-      this->eeComTask_->wa() = Eigen::VectorXd::Ones(6 * gaitParam.eeName.size() + 3)* 1e-3;
+      this->eeComTask_->wa() = Eigen::VectorXd::Ones(6 * gaitParam.eeName.size() + 3);
       this->eeComTask_->dl() = Eigen::VectorXd::Zero(6 + actRobotTqc->numJoints());
       this->eeComTask_->du() = Eigen::VectorXd::Ones(6 + actRobotTqc->numJoints()) * 3.0;
-      this->eeComTask_->wc() = cnoid::VectorX::Ones(6 + actRobotTqc->numJoints()) * 1e-6;
+      this->eeComTask_->wc() = cnoid::VectorX::Ones(6 + actRobotTqc->numJoints());
       this->eeComTask_->w() = cnoid::VectorX::Ones(6 + actRobotTqc->numJoints()) * 1e-6;
       this->eeComTask_->toSolve() = true;
       this->eeComTask_->settings().check_termination = 15; // default 25. 高速化
@@ -522,7 +529,7 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
 	  this->rootTask_->b()[i+3] = this->root_K[i+3] * cnoid::rpyFromRot(gaitParam.genRobot->rootLink()->R() * gaitParam.actRobot->rootLink()->R().transpose())[i];
 	}
 	
-	this->rootTask_->wa() = cnoid::Vector6::Ones() * 1e-3;
+	this->rootTask_->wa() = cnoid::Vector6::Ones();
 	this->rootTask_->C() = Eigen::SparseMatrix<double, Eigen::RowMajor>(6 + actRobotTqc->numJoints(),6 + actRobotTqc->numJoints());
 	std::vector<Eigen::Triplet<double> > tripletList_C;
 	for (int i=0;i<6;i++){
@@ -530,7 +537,7 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
 	}
 	this->rootTask_->dl() = - Eigen::VectorXd::Ones(6 + actRobotTqc->numJoints()) * 1e+1;
 	this->rootTask_->du() = Eigen::VectorXd::Ones(6 + actRobotTqc->numJoints()) * 1e+1;
-	this->rootTask_->wc() = cnoid::VectorX::Ones(6 + actRobotTqc->numJoints()) * 1e-3;
+	this->rootTask_->wc() = cnoid::VectorX::Ones(6 + actRobotTqc->numJoints());
 	this->rootTask_->w() = cnoid::VectorXd::Ones(6 + actRobotTqc->numJoints()) * 1e-6;
 	this->rootTask_->toSolve() = true;
 	this->rootTask_->settings().check_termination = 15; // default 25. 高速化
@@ -553,8 +560,8 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
 	actRobotTqc->rootLink()->T() = gaitParam.actRobot->rootLink()->T();
 	actRobotTqc->rootLink()->v() = gaitParam.actRootVel.value().head<3>();
 	actRobotTqc->rootLink()->w() = gaitParam.actRootVel.value().tail<3>();
-	actRobotTqc->rootLink()->dv() = result.block(0,0,3,1);//  << result[0], result[1], result[2];
-	actRobotTqc->rootLink()->dw() = result.block(3,0,3,1);// << result[3], result[4], result[5];
+	actRobotTqc->rootLink()->dv() = result.segment(0,3);//  << result[0], result[1], result[2];
+	actRobotTqc->rootLink()->dw() = result.segment(3,3);// << result[3], result[4], result[5];
 	for(int i=0;i<actRobotTqc->numJoints();i++){
 	  actRobotTqc->joint(i)->q() = gaitParam.actRobot->joint(i)->q();
 	  // dqとしてactualを使うと振動する可能性があるが、referenceを使うと外力による駆動を考慮できない
@@ -562,6 +569,7 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
 	  actRobotTqc->joint(i)->dq() = gaitParam.actRobot->joint(i)->dq();
 	  actRobotTqc->joint(i)->ddq() = result[6+i];
 	}
+	actRobotTqc->calcForwardKinematics(true, true);
 	cnoid::calcInverseDynamics(actRobotTqc->rootLink()); // actRobotTqc->joint()->u()に書き込まれる
 	for(int i=0;i<actRobotTqc->numJoints();i++){
 	  tau_ee[i] = actRobotTqc->joint(i)->u();
