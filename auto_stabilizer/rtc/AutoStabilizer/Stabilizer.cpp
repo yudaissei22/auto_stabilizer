@@ -387,15 +387,14 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
 	    actRobotTqc->joint(i)->dq() = gaitParam.actRobot->joint(i)->dq();
 	    actRobotTqc->joint(i)->ddq() = 0.0;
 	  }
-	  actRobotTqc->calcForwardKinematics(true, true); // dJ * dq がactRobotTqc->link(gaitParam.eeParentLink[i])->dv(), dw()に格納される
+	  actRobotTqc->calcForwardKinematics(true, true); // actRobotTqc->link(gaitParam.eeParentLink[i])->dv(), dw()が更新される
 	  actRobotTqc->calcCenterOfMass();
 	  for(int i=0;i<gaitParam.eeName.size();i++){
-	    dJdq[i][0] = actRobotTqc->link(gaitParam.eeParentLink[i])->dv()[0];
-	    dJdq[i][1] = actRobotTqc->link(gaitParam.eeParentLink[i])->dv()[1];
-	    dJdq[i][2] = actRobotTqc->link(gaitParam.eeParentLink[i])->dv()[2];
-	    dJdq[i][3] = actRobotTqc->link(gaitParam.eeParentLink[i])->dw()[0];
-	    dJdq[i][4] = actRobotTqc->link(gaitParam.eeParentLink[i])->dw()[1];
-	    dJdq[i][5] = actRobotTqc->link(gaitParam.eeParentLink[i])->dw()[2];
+	    cnoid::Vector3 arm = actRobotTqc->link(gaitParam.eeParentLink[i])->R() * gaitParam.eeLocalT[i].translation();
+	    cnoid::Vector3 ee_dv = actRobotTqc->link(gaitParam.eeParentLink[i])->dv() + actRobotTqc->link(gaitParam.eeParentLink[i])->w().cross(actRobotTqc->link(gaitParam.eeParentLink[i])->w().cross(arm)) + actRobotTqc->link(gaitParam.eeParentLink[i])->dw().cross(arm);
+	    cnoid::Vector3 ee_dw = actRobotTqc->link(gaitParam.eeParentLink[i])->dw();
+	    dJdq[i].head<3>() = ee_dv;
+	    dJdq[i].tail<3>() = ee_dw;
 	  }
 	} // dJ * dq
 
