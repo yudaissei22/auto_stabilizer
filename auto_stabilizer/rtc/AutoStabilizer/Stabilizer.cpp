@@ -344,14 +344,15 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
 	ee_acc.resize(gaitParam.eeName.size());
 	// ee_act
 	{
-	  // ee_act_ref
 	  for(int i=0;i<gaitParam.eeName.size();i++){
+	    if((i < NUM_LEGS) && gaitParam.footstepNodesList[0].isSupportPhase[i]) {
+	      ee_acc[i] = cnoid::Vector6::Zero();
+	      continue; // 支持脚は加速させない
+	    }
+	    // ee_act_ref
 	    ee_acc[i].head<3>() = (gaitParam.abcEETargetPose[i].translation() - 2 * eeTargetPosed[i].translation() + eeTargetPosedd[i].translation()) / dt / dt;
 	    ee_acc[i].tail<3>() = (cnoid::rpyFromRot(gaitParam.abcEETargetPose[i].linear() * eeTargetPosed[i].linear().transpose()) - cnoid::rpyFromRot(eeTargetPosed[i].linear() * eeTargetPosedd[i].linear().transpose())) / dt / dt; // TODO
-	  }
-
-	  // K (ee_p_ref - ee_p_act) + D (ee_vel_ref - ee_vel_act)
-	  for(int i=0;i<gaitParam.eeName.size();i++){
+	    // K (ee_p_ref - ee_p_act) + D (ee_vel_ref - ee_vel_act)
 	    cnoid::Matrix3 eeR = gaitParam.actEEPose[i].linear();
 	    cnoid::Vector6 eePoseDiffLocal; // endEfector frame
 	    eePoseDiffLocal.head<3>() = eeR.transpose() * (gaitParam.abcEETargetPose[i].translation() - gaitParam.actEEPose[i].translation());
