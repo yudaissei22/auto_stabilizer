@@ -368,6 +368,9 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
 	    ee_acc[i].tail<3>() += eeR * eePoseDiffGainLocal.tail<3>(); // generate frame
 	    ee_acc[i].head<3>() += eeR * eeVelDiffGainLocal.head<3>(); // generate frame
 	    ee_acc[i].tail<3>() += eeR * eeVelDiffGainLocal.tail<3>(); // generate frame
+	    if (ee_acc[i].head<3>().norm() > this->ee_dv_limit) ee_acc[i].head<3>() = ee_acc[i].head<3>() / ee_acc[i].head<3>().norm() * this->ee_dv_limit;
+	    if (ee_acc[i].tail<3>().norm() > this->ee_dw_limit) ee_acc[i].tail<3>() = ee_acc[i].tail<3>() / ee_acc[i].tail<3>().norm() * this->ee_dw_limit;
+
 	    eePoseDiff_prev[i] = eePoseDiffLocal;
 	  }
 	} // ee_act

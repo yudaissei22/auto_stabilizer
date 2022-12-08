@@ -27,6 +27,8 @@ public:
   cnoid::Vector3 com_K; // generate frame. 
   cnoid::Vector3 com_D; // generate frame.
   cnoid::Vector6 root_K; // generate frame.
+  double ee_dv_limit = 20.0; // 分解加速度制御でのタスク空間でのフィードバック込みの加速度ノルム上限
+  double ee_dw_limit = 20.0; // 分解加速度制御でのタスク空間でのフィードバック込みの角加速度ノルム上限
 
   void init(const GaitParam& gaitParam, cnoid::BodyPtr& actRobotTqc){
     for(int i=0;i<NUM_LEGS;i++){
