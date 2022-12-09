@@ -619,14 +619,16 @@ bool AutoStabilizer::execAutoStabilizer(const AutoStabilizer::ControlMode& mode,
     }
   }
   stabilizer.execStabilizer(gaitParam, dt, mode.isSTRunning(),
-                            gaitParam.stOffsetRootRpy, gaitParam.stTargetRootPose, gaitParam.stTargetZmp, gaitParam.stEETargetWrench, gaitParam.stTargetCogAcc);
+                            gaitParam.stOffsetRootRpy, gaitParam.stTargetRootPose);
 
   // FullbodyIKSolver
   fullbodyIKSolver.solveFullbodyIK(dt, gaitParam,// input
                                    gaitParam.genRobot); // output
 
-  stabilizer.calcTorque(dt, gaitParam, mode.isSTRunning(),
-			gaitParam.actRobotTqc, gaitParam.stEETargetWrench, gaitParam.stServoPGainPercentage, gaitParam.stServoDGainPercentage, gaitParam.prev_q, gaitParam.prev_dq, gaitParam.eePoseDiffLocal_prev, gaitParam.abcEETargetPosed, gaitParam.abcEETargetPosedd);
+  stabilizer.calcResolvedAccelationControl(gaitParam, dt, mode.isSTRunning(), gaitParam.actRobotTqc,
+					   gaitParam.stTargetZmp, gaitParam.stEETargetWrench,
+					   gaitParam.stServoPGainPercentage, gaitParam.stServoDGainPercentage,
+					   gaitParam.prev_q, gaitParam.prev_dq, gaitParam.eePoseDiffLocal_prev, gaitParam.abcEETargetPosed, gaitParam.abcEETargetPosedd);
 
   return true;
 }
