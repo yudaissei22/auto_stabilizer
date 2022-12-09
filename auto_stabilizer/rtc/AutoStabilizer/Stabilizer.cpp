@@ -541,8 +541,9 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
 	for (int i=0;i<3;i++){
 	  this->jointPDTask_->b()[i+3] = (gaitParam.genRobot->rootLink()->w()[i] - prev_rootd[i+3]) / dt + this->refAngle_K[i+3] * cnoid::rpyFromRot(gaitParam.genRobot->rootLink()->R() * gaitParam.actRobot->rootLink()->R().transpose())[i]  + this->refAngle_D[i+3] * (gaitParam.genRobot->rootLink()->w()[i] - gaitParam.actRootVel.value()[i+3]);
 	}
+	// refRobotに追従
 	for (int i=0;i<actRobotTqc->numJoints();i++){
-	  this->jointPDTask_->b()[i+6] = (gaitParam.genRobot->joint(i)->dq() - prev_dq[i]) / dt + this->refAngle_K[i+6] * (gaitParam.genRobot->joint(i)->q() - gaitParam.actRobot->joint(i)->q()) + this->refAngle_D[i+6] * (gaitParam.genRobot->joint(i)->dq() - gaitParam.actRobot->joint(i)->dq());
+	  this->jointPDTask_->b()[i+6] = (gaitParam.refRobot->joint(i)->dq() - prev_dq[i]) / dt + this->refAngle_K[i+6] * (gaitParam.refRobot->joint(i)->q() - gaitParam.actRobot->joint(i)->q()) + this->refAngle_D[i+6] * (gaitParam.refRobot->joint(i)->dq() - gaitParam.actRobot->joint(i)->dq());
 	}
 
 	this->jointPDTask_->wa() = cnoid::VectorXd::Ones(6 + actRobotTqc->numJoints());
@@ -680,7 +681,7 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
 
   for(int i=0;i<gaitParam.genRobot->numJoints();i++){
     prev_q[i] = gaitParam.genRobot->joint(i)->q();
-    prev_dq[i] = gaitParam.genRobot->joint(i)->dq();
+    prev_dq[i] = gaitParam.refRobot->joint(i)->dq();
   }
 
   for(int i=0;i<gaitParam.eeName.size();i++){

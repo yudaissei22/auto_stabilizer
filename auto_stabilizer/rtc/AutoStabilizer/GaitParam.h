@@ -149,8 +149,8 @@ public:
   std::vector<cpp_filters::TwoPointInterpolator<double> > stServoPGainPercentage; // 要素数と順序はrobot->numJoints()と同じ. 0~100. 現状, setGoal(*,dt)以下の時間でgoal指定するとwriteOutPortDataが破綻する
   std::vector<cpp_filters::TwoPointInterpolator<double> > stServoDGainPercentage; // 要素数と順序はrobot->numJoints()と同じ. 0~100. 現状, setGoal(*,dt)以下の時間でgoal指定するとwriteOutPortDataが破綻する
   cnoid::BodyPtr actRobotTqc; // output. 関節トルク制御用. (actRobotと同じだが、uの値として指令関節トルクが入っている)
-  Eigen::VectorXd prev_q;
-  Eigen::VectorXd prev_dq;
+  Eigen::VectorXd prev_q; // not used. genRobot
+  Eigen::VectorXd prev_dq; // refRobot
   cnoid::Vector6 prev_rootd = cnoid::Vector6::Zero();
   std::vector<cnoid::Vector6> eePoseDiffLocal_prev;
   std::vector<cnoid::Position> abcEETargetPosed; // 要素数と順序はeeNameと同じ.generate frame.
