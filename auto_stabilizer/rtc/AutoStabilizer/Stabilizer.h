@@ -26,8 +26,8 @@ public:
   std::vector<cnoid::Vector6> ee_D; // 要素数EndEffectors. EndEffector frame. endEffector origin. 0以上
   cnoid::Vector3 com_K; // generate frame. 
   cnoid::Vector3 com_D; // generate frame.
-  cnoid::Vector6 root_K; // generate frame.
-  cnoid::Vector6 root_D; // generate frame.
+  cnoid::VectorXd refAngle_K; // generate frame.
+  cnoid::VectorXd refAngle_D; // generate frame.
   double ee_dv_limit = 20.0; // 分解加速度制御でのタスク空間でのフィードバック込みの加速度ノルム上限
   double ee_dw_limit = 20.0; // 分解加速度制御でのタスク空間でのフィードバック込みの角加速度ノルム上限
 
@@ -85,12 +85,20 @@ public:
     cnoid::Vector3 defaultComD;
     defaultComD << 0, 0, 0;
     this->com_D = defaultComD;
+    this->refAngle_K = cnoid::VectorXd::Zero(6 + gaitParam.actRobotTqc->numJoints());
+    this->refAngle_D = cnoid::VectorXd::Zero(6 + gaitParam.actRobotTqc->numJoints());
     cnoid::Vector6 defaultRootK;
     defaultRootK << 50, 50, 50, 20, 20, 20;
-    this->root_K = defaultRootK;
+    this->refAngle_K.head<6>() = defaultRootK;
+    for (int i=0;i<gaitParam.actRobotTqc->numJoints();i++){
+      this->refAngle_K[6+i] = 100;
+    }
     cnoid::Vector6 defaultRootD;
     defaultRootD << 100, 100, 1, 100, 100, 1;
-    this->root_D = defaultRootD;
+    this->refAngle_D.head<6>() = defaultRootD;
+    for (int i=0;i<gaitParam.actRobotTqc->numJoints();i++){
+      this->refAngle_D[6+i] = 5;
+    }
   }
 protected:
   // 計算高速化のためのキャッシュ. クリアしなくても別に副作用はない.
@@ -100,7 +108,7 @@ protected:
   mutable std::shared_ptr<prioritized_qp_osqp::Task> copTask_ = std::make_shared<prioritized_qp_osqp::Task>();
   // for calcTorque
   mutable std::shared_ptr<prioritized_qp_osqp::Task> eeComTask_ = std::make_shared<prioritized_qp_osqp::Task>();
-  mutable std::shared_ptr<prioritized_qp_osqp::Task> rootTask_ = std::make_shared<prioritized_qp_osqp::Task>();
+  mutable std::shared_ptr<prioritized_qp_osqp::Task> jointPDTask_ = std::make_shared<prioritized_qp_osqp::Task>();
 public:
   void initStabilizerOutput(const GaitParam& gaitParam,
                             cpp_filters::TwoPointInterpolator<cnoid::Vector3>& o_stOffsetRootRpy, cnoid::Vector3& o_stTargetZmp, std::vector<cpp_filters::TwoPointInterpolator<double> >& o_stServoPGainPercentage, std::vector<cpp_filters::TwoPointInterpolator<double> >& o_stServoDGainPercentage) const;

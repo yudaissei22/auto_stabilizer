@@ -452,7 +452,7 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
 	    bool sign = cnoid::rpyFromRot(gaitParam.genRobot->rootLink()->R())[i] > cnoid::rpyFromRot(gaitParam.actRobot->rootLink()->R())[i];
 	    eeComTripletList_C.push_back(Eigen::Triplet<double>(3+i,3+i,sign? 1.0 : -1.0));
 	    }*/
-	
+
 	  for(int i=0;i<actRobotTqc->numJoints();i++){
 	    bool sign = gaitParam.genRobot->joint(i)->q() > gaitParam.actRobot->joint(i)->q();
 	    eeComTripletList_C.push_back(Eigen::Triplet<double>(6+i,6+i,sign? 1.0 : -1.0)); // insertすると時間がかかる
@@ -514,7 +514,6 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
 	  this->eeComTask_->b().tail<3>() = com_acc - dJdq;
 	}
       }
-      
       this->eeComTask_->A().setFromTriplets(eeComTripletList_A.begin(), eeComTripletList_A.end());
       this->eeComTask_->C().setFromTriplets(eeComTripletList_C.begin(), eeComTripletList_C.end());
       this->eeComTask_->wa() = Eigen::VectorXd::Ones(6 * gaitParam.eeName.size() + 3);
@@ -526,42 +525,45 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
       this->eeComTask_->settings().check_termination = 15; // default 25. 高速化
       this->eeComTask_->settings().verbose = 0;
 
-      // rootTask
-      // Jacobianもgenerate frameなのでdJ * dq = 0
+      // jointPDTask
+      // (角)加速度でのPD制御
       {
-	// rootTaskを作る
-	this->rootTask_->A() = Eigen::SparseMatrix<double, Eigen::RowMajor>(6,6 + actRobotTqc->numJoints());
+	// jointPDTaskを作る
+	this->jointPDTask_->A() = Eigen::SparseMatrix<double, Eigen::RowMajor>(6 + actRobotTqc->numJoints(),6 + actRobotTqc->numJoints());
 	std::vector<Eigen::Triplet<double> > tripletList_A;
 	for (int i=0;i<6;i++){
 	  tripletList_A.push_back(Eigen::Triplet<double>(i,i,1.0));
 	}
-	this->rootTask_->b() = cnoid::Vector6::Zero();
+	this->jointPDTask_->b() = cnoid::VectorXd::Zero(6 + actRobotTqc->numJoints());
 	for (int i=0;i<3;i++){
-	  this->rootTask_->b()[i] = (gaitParam.genRobot->rootLink()->v()[i] - prev_rootd[i]) / dt + this->root_K[i] * (gaitParam.genRobot->rootLink()->p()[i] - gaitParam.actRobot->rootLink()->p()[i]) + this->root_D[i] * (gaitParam.genRobot->rootLink()->v()[i] - gaitParam.actRootVel.value()[i]);
+	  this->jointPDTask_->b()[i] = (gaitParam.genRobot->rootLink()->v()[i] - prev_rootd[i]) / dt + this->refAngle_K[i] * (gaitParam.genRobot->rootLink()->p()[i] - gaitParam.actRobot->rootLink()->p()[i]) + this->refAngle_D[i] * (gaitParam.genRobot->rootLink()->v()[i] - gaitParam.actRootVel.value()[i]);
 	}
 	for (int i=0;i<3;i++){
-	  this->rootTask_->b()[i+3] = (gaitParam.genRobot->rootLink()->w()[i] - prev_rootd[i+3]) / dt + this->root_K[i+3] * cnoid::rpyFromRot(gaitParam.genRobot->rootLink()->R() * gaitParam.actRobot->rootLink()->R().transpose())[i]  + this->root_D[i+3] * (gaitParam.genRobot->rootLink()->w()[i] - gaitParam.actRootVel.value()[i+3]);
+	  this->jointPDTask_->b()[i+3] = (gaitParam.genRobot->rootLink()->w()[i] - prev_rootd[i+3]) / dt + this->refAngle_K[i+3] * cnoid::rpyFromRot(gaitParam.genRobot->rootLink()->R() * gaitParam.actRobot->rootLink()->R().transpose())[i]  + this->refAngle_D[i+3] * (gaitParam.genRobot->rootLink()->w()[i] - gaitParam.actRootVel.value()[i+3]);
+	}
+	for (int i=0;i<actRobotTqc->numJoints();i++){
+	  this->jointPDTask_->b()[i+6] = (gaitParam.genRobot->joint(i)->dq() - prev_dq[i]) / dt + this->refAngle_K[i+6] * (gaitParam.genRobot->joint(i)->q() - gaitParam.actRobot->joint(i)->q()) + this->refAngle_D[i+6] * (gaitParam.genRobot->joint(i)->dq() - gaitParam.actRobot->joint(i)->dq());
 	}
 
-	this->rootTask_->wa() = cnoid::Vector6::Ones();
-	this->rootTask_->C() = Eigen::SparseMatrix<double, Eigen::RowMajor>(6 + actRobotTqc->numJoints(),6 + actRobotTqc->numJoints());
+	this->jointPDTask_->wa() = cnoid::VectorXd::Ones(6 + actRobotTqc->numJoints());
+	this->jointPDTask_->C() = Eigen::SparseMatrix<double, Eigen::RowMajor>(6 + actRobotTqc->numJoints(),6 + actRobotTqc->numJoints());
 	std::vector<Eigen::Triplet<double> > tripletList_C;
-	for (int i=0;i<6;i++){
+	for (int i=0;i<6 + actRobotTqc->numJoints();i++){
 	  tripletList_C.push_back(Eigen::Triplet<double>(i,i,1.0));
 	}
-	this->rootTask_->dl() = - Eigen::VectorXd::Ones(6 + actRobotTqc->numJoints()) * 1e+1;
-	this->rootTask_->du() = Eigen::VectorXd::Ones(6 + actRobotTqc->numJoints()) * 1e+1;
-	this->rootTask_->wc() = cnoid::VectorX::Ones(6 + actRobotTqc->numJoints());
-	this->rootTask_->w() = cnoid::VectorXd::Ones(6 + actRobotTqc->numJoints()) * 1e-6;
-	this->rootTask_->toSolve() = true;
-	this->rootTask_->settings().check_termination = 15; // default 25. 高速化
-	this->rootTask_->settings().verbose = 0;
+	this->jointPDTask_->dl() = - Eigen::VectorXd::Ones(6 + actRobotTqc->numJoints()) * 10;
+	this->jointPDTask_->du() = Eigen::VectorXd::Ones(6 + actRobotTqc->numJoints()) * 10;
+	this->jointPDTask_->wc() = cnoid::VectorX::Ones(6 + actRobotTqc->numJoints());
+	this->jointPDTask_->w() = cnoid::VectorXd::Ones(6 + actRobotTqc->numJoints()) * 1e-6;
+	this->jointPDTask_->toSolve() = true;
+	this->jointPDTask_->settings().check_termination = 15; // default 25. 高速化
+	this->jointPDTask_->settings().verbose = 0;
       }      
 
       // ddqを計算
       std::vector<std::shared_ptr<prioritized_qp_base::Task> > tasks;
       tasks.push_back(this->eeComTask_);
-      tasks.push_back(this->rootTask_);
+      tasks.push_back(this->jointPDTask_);
 	
       cnoid::VectorX result;
       if(!prioritized_qp_base::solve(tasks,
