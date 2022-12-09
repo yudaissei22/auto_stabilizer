@@ -35,13 +35,6 @@ public:
     for(int i=0;i<NUM_LEGS;i++){
       cnoid::JointPath jointPath(actRobotTqc->rootLink(), actRobotTqc->link(gaitParam.eeParentLink[i]));
       if(jointPath.numJoints() == 6){
-        // supportPgain[i] = {5,10,10,5,0.1,0.1};
-        // supportDgain[i] = {10,20,20,10,10,10};
-        // landingPgain[i] = {5,10,10,5,0.1,0.1};
-        // landingDgain[i] = {10,20,20,10,10,10};
-        // swingPgain[i] = {5,10,10,5,0.1,0.1};
-        // swingDgain[i] = {10,20,20,10,10,10};
-        // 下はもとのauto_stabilizerの値. ゲインが低すぎて、go-velocity 0 0 0のときに前に進んでいってしまう
         /*supportPgain[i] = {5,15,10,5,0.2,0.2};
         supportDgain[i] = {10,20,20,10,5,5};
         landingPgain[i] = {5,15,1,1,0.2,0.2};
@@ -54,6 +47,16 @@ public:
         landingDgain[i] = {0,0,0,0,0,0};
         swingPgain[i] = {0,0,0,0,0,0};
         swingDgain[i] = {0,0,0,0,0,0};
+	// Yamamoto param
+	// JAXON_RED固有（モータードライバ種類依存）
+	// pgain = {100,100,100,300,100,100}
+	// dgain = {20,2,2,5,3,3}
+	/*supportPgain[i] = {0.31,0.12,0.15,0.46,0.21,0.30};
+        supportDgain[i] = {1.693,0.066,0.085,0.212,0.176,0.251};
+        landingPgain[i] = {0.31,0.12,0.15,0.46,0.21,0.30};
+        landingDgain[i] = {1.693,0.066,0.085,0.212,0.176,0.251};
+        swingPgain[i] = {0.31,0.12,0.15,0.46,0.21,0.30};
+        swingDgain[i] = {1.693,0.066,0.085,0.212,0.176,0.251};*/
       }else{
         supportPgain[i].resize(jointPath.numJoints(), 100.0);
         supportDgain[i].resize(jointPath.numJoints(), 100.0);
