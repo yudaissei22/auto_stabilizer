@@ -628,7 +628,7 @@ bool AutoStabilizer::execAutoStabilizer(const AutoStabilizer::ControlMode& mode,
   stabilizer.calcResolvedAccelationControl(gaitParam, dt, mode.isSTRunning(), gaitParam.actRobotTqc,
 					   gaitParam.stTargetZmp, gaitParam.stEETargetWrench,
 					   gaitParam.stServoPGainPercentage, gaitParam.stServoDGainPercentage,
-					   gaitParam.prev_q, gaitParam.prev_dq, gaitParam.eePoseDiffLocal_prev, gaitParam.abcEETargetPosed, gaitParam.abcEETargetPosedd);
+					   gaitParam.prev_q, gaitParam.prev_dq, gaitParam.eePoseDiffLocal_prev, gaitParam.abcEETargetPosed, gaitParam.abcEETargetPosedd, gaitParam.prev_rootd);
 
   return true;
 }

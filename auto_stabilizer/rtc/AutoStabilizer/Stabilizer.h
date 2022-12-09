@@ -27,6 +27,7 @@ public:
   cnoid::Vector3 com_K; // generate frame. 
   cnoid::Vector3 com_D; // generate frame.
   cnoid::Vector6 root_K; // generate frame.
+  cnoid::Vector6 root_D; // generate frame.
   double ee_dv_limit = 20.0; // 分解加速度制御でのタスク空間でのフィードバック込みの加速度ノルム上限
   double ee_dw_limit = 20.0; // 分解加速度制御でのタスク空間でのフィードバック込みの角加速度ノルム上限
 
@@ -85,8 +86,11 @@ public:
     defaultComD << 0, 0, 0;
     this->com_D = defaultComD;
     cnoid::Vector6 defaultRootK;
-    defaultRootK << 1, 1, 1, 1, 1, 1;
+    defaultRootK << 50, 50, 50, 20, 20, 20;
     this->root_K = defaultRootK;
+    cnoid::Vector6 defaultRootD;
+    defaultRootD << 100, 100, 1, 100, 100, 1;
+    this->root_D = defaultRootD;
   }
 protected:
   // 計算高速化のためのキャッシュ. クリアしなくても別に副作用はない.
@@ -107,7 +111,7 @@ public:
   bool calcResolvedAccelationControl(const GaitParam& gaitParam, double dt, bool useActState, cnoid::BodyPtr& actRobotTqc, 
 				     cnoid::Vector3& o_stTargetZmp, std::vector<cnoid::Vector6>& o_stEETargetWrench,
 				     std::vector<cpp_filters::TwoPointInterpolator<double> >& o_stServoPGainPercentage, std::vector<cpp_filters::TwoPointInterpolator<double> >& o_stServoDGainPercentage,
-				     Eigen::VectorXd& prev_q, Eigen::VectorXd& prev_dq, std::vector<cnoid::Vector6>& eePoseDiff_prev, std::vector<cnoid::Position>& eeTargetPosed, std::vector<cnoid::Position>& eeTargetPosedd) const;
+				     Eigen::VectorXd& prev_q, Eigen::VectorXd& prev_dq, std::vector<cnoid::Vector6>& eePoseDiff_prev, std::vector<cnoid::Position>& eeTargetPosed, std::vector<cnoid::Position>& eeTargetPosedd, cnoid::Vector6& prev_rootd) const;
 
 protected:
   bool moveBasePosRotForBodyRPYControl(double dt, const GaitParam& gaitParam, bool useActState,
@@ -117,7 +121,8 @@ protected:
   bool calcWrench(const GaitParam& gaitParam, const cnoid::Vector3& tgtZmp/*generate座標系*/, const cnoid::Vector3& tgtForce/*generate座標系. ロボットが受ける力*/, bool useActState, cnoid::BodyPtr& actRobotTqc, 
                   std::vector<cnoid::Vector6>& o_tgtEEWrench /* 要素数EndEffector数. generate座標系. EndEffector origin*/) const;
   bool calcTorque(double dt, const GaitParam& gaitParam, bool useActState, cnoid::BodyPtr& actRobotTqc, const cnoid::Vector3& targetCogAcc, 
-                  std::vector<cpp_filters::TwoPointInterpolator<double> >& o_stServoPGainPercentage, std::vector<cpp_filters::TwoPointInterpolator<double> >& o_stServoDGainPercentage, Eigen::VectorXd& prev_q, Eigen::VectorXd& prev_dq, std::vector<cnoid::Vector6>& eePoseDiff_prev, std::vector<cnoid::Position>& eeTargetPosed, std::vector<cnoid::Position>& eeTargetPosedd) const;
+                  std::vector<cpp_filters::TwoPointInterpolator<double> >& o_stServoPGainPercentage, std::vector<cpp_filters::TwoPointInterpolator<double> >& o_stServoDGainPercentage,
+		  cnoid::Vector3& root2CogForce, Eigen::VectorXd& prev_q, Eigen::VectorXd& prev_dq, std::vector<cnoid::Vector6>& eePoseDiff_prev, std::vector<cnoid::Position>& eeTargetPosed, std::vector<cnoid::Position>& eeTargetPosedd, cnoid::Vector6& prev_rootd) const;
 
 };
 

@@ -151,6 +151,7 @@ public:
   cnoid::BodyPtr actRobotTqc; // output. 関節トルク制御用. (actRobotと同じだが、uの値として指令関節トルクが入っている)
   Eigen::VectorXd prev_q;
   Eigen::VectorXd prev_dq;
+  cnoid::Vector6 prev_rootd = cnoid::Vector6::Zero();
   std::vector<cnoid::Vector6> eePoseDiffLocal_prev;
   std::vector<cnoid::Position> abcEETargetPosed; // 要素数と順序はeeNameと同じ.generate frame.
   std::vector<cnoid::Position> abcEETargetPosedd; // 要素数と順序はeeNameと同じ.generate frame.

@@ -32,21 +32,24 @@ bool Stabilizer::execStabilizer(const GaitParam& gaitParam, double dt, bool useA
 bool Stabilizer::calcResolvedAccelationControl(const GaitParam& gaitParam, double dt, bool useActState, cnoid::BodyPtr& actRobotTqc, 
 				     cnoid::Vector3& o_stTargetZmp, std::vector<cnoid::Vector6>& o_stEETargetWrench,
 				     std::vector<cpp_filters::TwoPointInterpolator<double> >& o_stServoPGainPercentage, std::vector<cpp_filters::TwoPointInterpolator<double> >& o_stServoDGainPercentage,
-					       Eigen::VectorXd& prev_q, Eigen::VectorXd& prev_dq, std::vector<cnoid::Vector6>& eePoseDiff_prev, std::vector<cnoid::Position>& eeTargetPosed, std::vector<cnoid::Position>& eeTargetPosedd) const{
+					       Eigen::VectorXd& prev_q, Eigen::VectorXd& prev_dq, std::vector<cnoid::Vector6>& eePoseDiff_prev, std::vector<cnoid::Position>& eeTargetPosed, std::vector<cnoid::Position>& eeTargetPosedd, cnoid::Vector6& prev_rootd) const{
   // - 現在のactual重心位置から、目標ZMPを計算
   // - 目標位置姿勢を満たすように分解加速度制御. 重心が倒立振子で加速された場合のトルクを計算
   // - 目標のZMPを満たすように目標足裏反力を計算、仮想仕事の原理で足し込む
 
   // - 現在のactual重心位置から、目標ZMPを計算
   cnoid::Vector3 tgtForce; // generate frame
-  cnoid::Vector3 tgtCogAcc;
+  cnoid::Vector3 tgtCogAcc; // generate frame
   this->calcZMP(gaitParam, dt, useActState, // input
                 o_stTargetZmp, tgtForce, tgtCogAcc); // output
 
+  cnoid::Vector3 root2CogForce; // generate frame
   this->calcTorque(dt, gaitParam, useActState, actRobotTqc, tgtCogAcc,
 		   o_stServoPGainPercentage, o_stServoDGainPercentage,
-		   prev_q, prev_dq, eePoseDiff_prev, eeTargetPosed, eeTargetPosedd);
+		   root2CogForce,
+		   prev_q, prev_dq, eePoseDiff_prev, eeTargetPosed, eeTargetPosedd, prev_rootd);
 
+  tgtForce += root2CogForce;
   // 目標ZMPを満たすように目標EndEffector反力を計算
   this->calcWrench(gaitParam, o_stTargetZmp, tgtForce, useActState,// input
                    actRobotTqc, o_stEETargetWrench); // output
@@ -299,8 +302,9 @@ bool Stabilizer::calcWrench(const GaitParam& gaitParam, const cnoid::Vector3& tg
   return true;
 }
 
-bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActState, cnoid::BodyPtr& actRobotTqc, const cnoid::Vector3& targetCogAcc, 
-                            std::vector<cpp_filters::TwoPointInterpolator<double> >& o_stServoPGainPercentage, std::vector<cpp_filters::TwoPointInterpolator<double> >& o_stServoDGainPercentage, Eigen::VectorXd& prev_q, Eigen::VectorXd& prev_dq, std::vector<cnoid::Vector6>& eePoseDiff_prev, std::vector<cnoid::Position>& eeTargetPosed, std::vector<cnoid::Position>& eeTargetPosedd) const{
+bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActState, cnoid::BodyPtr& actRobotTqc, const cnoid::Vector3& targetCogAcc,
+                            std::vector<cpp_filters::TwoPointInterpolator<double> >& o_stServoPGainPercentage, std::vector<cpp_filters::TwoPointInterpolator<double> >& o_stServoDGainPercentage, cnoid::Vector3& root2CogForce,
+			    Eigen::VectorXd& prev_q, Eigen::VectorXd& prev_dq, std::vector<cnoid::Vector6>& eePoseDiff_prev, std::vector<cnoid::Position>& eeTargetPosed, std::vector<cnoid::Position>& eeTargetPosedd, cnoid::Vector6& prev_rootd) const{
 
   if(!useActState){
     for(int i=0;i<actRobotTqc->numJoints();i++) actRobotTqc->joint(i)->u() = 0.0;
@@ -533,12 +537,12 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
 	}
 	this->rootTask_->b() = cnoid::Vector6::Zero();
 	for (int i=0;i<3;i++){
-	  this->rootTask_->b()[i] = this->root_K[i] * (gaitParam.genRobot->rootLink()->p()[i] - gaitParam.actRobot->rootLink()->p()[i]);
+	  this->rootTask_->b()[i] = (gaitParam.genRobot->rootLink()->v()[i] - prev_rootd[i]) / dt + this->root_K[i] * (gaitParam.genRobot->rootLink()->p()[i] - gaitParam.actRobot->rootLink()->p()[i]) + this->root_D[i] * (gaitParam.genRobot->rootLink()->v()[i] - gaitParam.actRootVel.value()[i]);
 	}
 	for (int i=0;i<3;i++){
-	  this->rootTask_->b()[i+3] = this->root_K[i+3] * cnoid::rpyFromRot(gaitParam.genRobot->rootLink()->R() * gaitParam.actRobot->rootLink()->R().transpose())[i];
+	  this->rootTask_->b()[i+3] = (gaitParam.genRobot->rootLink()->w()[i] - prev_rootd[i+3]) / dt + this->root_K[i+3] * cnoid::rpyFromRot(gaitParam.genRobot->rootLink()->R() * gaitParam.actRobot->rootLink()->R().transpose())[i]  + this->root_D[i+3] * (gaitParam.genRobot->rootLink()->w()[i] - gaitParam.actRootVel.value()[i+3]);
 	}
-	
+
 	this->rootTask_->wa() = cnoid::Vector6::Ones();
 	this->rootTask_->C() = Eigen::SparseMatrix<double, Eigen::RowMajor>(6 + actRobotTqc->numJoints(),6 + actRobotTqc->numJoints());
 	std::vector<Eigen::Triplet<double> > tripletList_C;
@@ -580,11 +584,15 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
 	  actRobotTqc->joint(i)->ddq() = result[6+i];
 	}
 	actRobotTqc->calcForwardKinematics(true, true);
+	actRobotTqc->calcCenterOfMass();
 	cnoid::calcInverseDynamics(actRobotTqc->rootLink()); // actRobotTqc->joint()->u()に書き込まれる
 	for(int i=0;i<actRobotTqc->numJoints();i++){
 	  tau_ee[i] = actRobotTqc->joint(i)->u();
 	  actRobotTqc->joint(i)->u() = 0.0;
 	}
+	cnoid::Vector3 arm = actRobotTqc->centerOfMass() - actRobotTqc->rootLink()->p();
+	cnoid::Vector3 cogAccFromRot = actRobotTqc->rootLink()->w().cross(actRobotTqc->rootLink()->w().cross(arm)) + actRobotTqc->rootLink()->dw().cross(arm);
+	root2CogForce = - cogAccFromRot * actRobotTqc->mass();
       }      
     }
 
@@ -677,6 +685,9 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
     eeTargetPosedd[i] = eeTargetPosed[i];
     eeTargetPosed[i] = gaitParam.abcEETargetPose[i];
   }
+
+  prev_rootd.head<3>() = gaitParam.genRobot->rootLink()->v();
+  prev_rootd.tail<3>() = gaitParam.genRobot->rootLink()->w();
   
   return true;
 }
