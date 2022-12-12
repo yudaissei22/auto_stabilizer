@@ -520,12 +520,16 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
       this->eeComTask_->wa() = Eigen::VectorXd::Ones(6 * gaitParam.eeName.size() + 3);
       this->eeComTask_->dl() = -Eigen::VectorXd::Ones(6 + actRobotTqc->numJoints()) * 0.3;
       this->eeComTask_->du() = Eigen::VectorXd::Ones(6 + actRobotTqc->numJoints()) * 3.0;
+      this->eeComTask_->du()[6+1] = 20; // 実際は100程度必要なときもある
       this->eeComTask_->du()[6+2] = 50; // 実際は100程度必要なときもある
       this->eeComTask_->du()[6+3] = 50; // 実際は100程度必要なときもある
       this->eeComTask_->du()[6+4] = 50; // 実際は100程度必要なときもある
+      this->eeComTask_->du()[6+5] = 50; // 実際は100程度必要なときもある
+      this->eeComTask_->du()[6+7] = 20; // 実際は100程度必要なときもある
       this->eeComTask_->du()[6+8] = 50; // 実際は100程度必要なときもある
       this->eeComTask_->du()[6+9] = 50; // 実際は100程度必要なときもある
       this->eeComTask_->du()[6+10] = 50; // 実際は100程度必要なときもある
+      this->eeComTask_->du()[6+11] = 50; // 実際は100程度必要なときもある
       this->eeComTask_->wc() = cnoid::VectorX::Ones(6 + actRobotTqc->numJoints());
       this->eeComTask_->w() = cnoid::VectorX::Ones(6 + actRobotTqc->numJoints()) * 1e-6;
       this->eeComTask_->toSolve() = true;
@@ -671,12 +675,12 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
 
       // arm
       for(int i=NUM_LEGS;i<NUM_LEGS+2;i++){
-	cnoid::JointPath jointPath(actRobotTqc->link("CHEST_JOINT2"), actRobotTqc->link(gaitParam.eeParentLink[i]));
-	double arm_gain = 0.0;
-	for(int j=0;j<jointPath.numJoints();j++){
-	  if(o_stServoPGainPercentage[jointPath.joint(j)->jointId()].getGoal() != arm_gain) o_stServoPGainPercentage[jointPath.joint(j)->jointId()].setGoal(arm_gain, 3.0);
-	  if(o_stServoDGainPercentage[jointPath.joint(j)->jointId()].getGoal() != arm_gain) o_stServoDGainPercentage[jointPath.joint(j)->jointId()].setGoal(arm_gain, 3.0);
-	}
+          cnoid::JointPath jointPath(actRobotTqc->rootLink(), actRobotTqc->link(gaitParam.eeParentLink[i]));
+          double arm_gain = 0.0;
+          for(int j=0;j<jointPath.numJoints();j++){
+              if(o_stServoPGainPercentage[jointPath.joint(j)->jointId()].getGoal() != arm_gain) o_stServoPGainPercentage[jointPath.joint(j)->jointId()].setGoal(arm_gain, 3.0);
+              if(o_stServoDGainPercentage[jointPath.joint(j)->jointId()].getGoal() != arm_gain) o_stServoDGainPercentage[jointPath.joint(j)->jointId()].setGoal(arm_gain, 3.0);
+          }
       }
     }
   
