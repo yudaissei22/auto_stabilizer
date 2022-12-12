@@ -597,7 +597,7 @@ bool AutoStabilizer::execAutoStabilizer(const AutoStabilizer::ControlMode& mode,
 
   // AutoBalancer
   footStepGenerator.procFootStepNodesList(gaitParam, dt, mode.isSTRunning(),
-                                          gaitParam.footstepNodesList, gaitParam.srcCoords, gaitParam.dstCoordsOrg, gaitParam.remainTimeOrg, gaitParam.swingState, gaitParam.elapsedTime, gaitParam.prevSupportPhase, gaitParam.relLandingHeight);
+                                          gaitParam.footstepNodesList, gaitParam.srcCoords, gaitParam.dstCoordsOrg, gaitParam.remainTimeOrg, gaitParam.swingState, gaitParam.elapsedTime, gaitParam.prevSupportPhase, gaitParam.relLandingHeight, gaitParam.doubleSupportZmpOffset);
   footStepGenerator.calcFootSteps(gaitParam, dt, mode.isSTRunning(),
                                   gaitParam.debugData, //for log
                                   gaitParam.footstepNodesList);

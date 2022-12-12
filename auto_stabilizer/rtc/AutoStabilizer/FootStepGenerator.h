@@ -108,7 +108,7 @@ public:
 
   // FootStepNodesListをdtすすめる
   bool procFootStepNodesList(const GaitParam& gaitParam, const double& dt, bool useActState,
-                             std::vector<GaitParam::FootStepNodes>& o_footstepNodesList, std::vector<cnoid::Position>& o_srcCoords, std::vector<cnoid::Position>& o_dstCoordsOrg, double& o_remainTimeOrg, std::vector<GaitParam::SwingState_enum>& o_swingState, double& o_elapsedTime, std::vector<bool>& o_prevSupportPhase, double& relLandingHeight) const;
+                             std::vector<GaitParam::FootStepNodes>& o_footstepNodesList, std::vector<cnoid::Position>& o_srcCoords, std::vector<cnoid::Position>& o_dstCoordsOrg, double& o_remainTimeOrg, std::vector<GaitParam::SwingState_enum>& o_swingState, double& o_elapsedTime, std::vector<bool>& o_prevSupportPhase, double& relLandingHeight, cnoid::Vector3& doubleSupportZmpOffset) const;
 
   /*
     footstepNodesList[1]開始時のsupport/swingの状態を上書きによって変更する場合は、footstepNodesList[0]の終了時の状態が両脚支持でかつその期間の時間がdefaultDoubleSupportTimeよりも短いなら延長する
@@ -126,7 +126,7 @@ public:
 
 protected:
   // 早づきしたらremainTimeをdtに減らしてすぐに次のnodeへ移る. この機能が無いと少しでもロボットが傾いて早づきするとジャンプするような挙動になる.
-  void checkEarlyTouchDown(std::vector<GaitParam::FootStepNodes>& footstepNodesList, const GaitParam& gaitParam, double dt) const;
+  void checkEarlyTouchDown(std::vector<GaitParam::FootStepNodes>& footstepNodesList, cnoid::Vector3& doubleSupportZmpOffset, const GaitParam& gaitParam, double dt) const;
   // stableGoStop.
   void checkStableGoStop(std::vector<GaitParam::FootStepNodes>& footstepNodesList, const GaitParam& gaitParam) const;
   // footstepNodesListをdtだけ進める
