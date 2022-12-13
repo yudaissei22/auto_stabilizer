@@ -444,19 +444,8 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
 	  
 	  }
 
-	  /*	  for(int i=0;i<3;i++) {
-	    bool sign = gaitParam.genRobot->rootLink()->p()[i] > gaitParam.actRobot->rootLink()->p()[i]; 
-	    eeComTripletList_C.push_back(Eigen::Triplet<double>(i,i,sign? 1.0 : -1.0));
-	  }
-
-	  for(int i=0;i<3;i++) {
-	    bool sign = cnoid::rpyFromRot(gaitParam.genRobot->rootLink()->R())[i] > cnoid::rpyFromRot(gaitParam.actRobot->rootLink()->R())[i];
-	    eeComTripletList_C.push_back(Eigen::Triplet<double>(3+i,3+i,sign? 1.0 : -1.0));
-	    }*/
-
-	  for(int i=0;i<actRobotTqc->numJoints();i++){
-	    bool sign = gaitParam.genRobot->joint(i)->q() > gaitParam.actRobot->joint(i)->q();
-	    eeComTripletList_C.push_back(Eigen::Triplet<double>(6+i,6+i,sign? 1.0 : -1.0)); // insertすると時間がかかる
+	  for(int i=0;i<6+actRobotTqc->numJoints();i++){
+	    eeComTripletList_C.push_back(Eigen::Triplet<double>(i,i,1.0)); // insertすると時間がかかる
 	  }
 	} // eeTask
       } // ee 分解加速度制御
@@ -518,27 +507,27 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
       this->eeComTask_->A().setFromTriplets(eeComTripletList_A.begin(), eeComTripletList_A.end());
       this->eeComTask_->C().setFromTriplets(eeComTripletList_C.begin(), eeComTripletList_C.end());
       this->eeComTask_->wa() = Eigen::VectorXd::Ones(6 * gaitParam.eeName.size() + 3);
-      this->eeComTask_->dl() = -Eigen::VectorXd::Ones(6 + actRobotTqc->numJoints()) * 0.3;
-      this->eeComTask_->du() = Eigen::VectorXd::Ones(6 + actRobotTqc->numJoints()) * 3.0;
+      this->eeComTask_->dl() = -Eigen::VectorXd::Ones(6 + actRobotTqc->numJoints()) * this->ddq_limit;
+      this->eeComTask_->du() = Eigen::VectorXd::Ones(6 + actRobotTqc->numJoints()) * this->ddq_limit;
       // root
-      this->eeComTask_->du()[3] = 0.5; // 実際は100程度必要なときもある
-      this->eeComTask_->du()[4] = 0.5; // 実際は100程度必要なときもある
+      //      this->eeComTask_->du()[3] = 0.5; // 実際は100程度必要なときもある
+      //this->eeComTask_->du()[4] = 0.5; // 実際は100程度必要なときもある
       // 右足
-      this->eeComTask_->du()[6+1] = 20; // 実際は100程度必要なときもある
-      this->eeComTask_->du()[6+2] = 50; // 実際は100程度必要なときもある
-      this->eeComTask_->du()[6+3] = 50; // 実際は100程度必要なときもある
-      this->eeComTask_->du()[6+4] = 50; // 実際は100程度必要なときもある
-      this->eeComTask_->du()[6+5] = 50; // 実際は100程度必要なときもある
+      //this->eeComTask_->du()[6+1] = 20; // 実際は100程度必要なときもある
+      //this->eeComTask_->du()[6+2] = 50; // 実際は100程度必要なときもある
+      //this->eeComTask_->du()[6+3] = 50; // 実際は100程度必要なときもある
+      //this->eeComTask_->du()[6+4] = 50; // 実際は100程度必要なときもある
+      //this->eeComTask_->du()[6+5] = 50; // 実際は100程度必要なときもある
       // 左足
-      this->eeComTask_->du()[6+7] = 20; // 実際は100程度必要なときもある
-      this->eeComTask_->du()[6+8] = 50; // 実際は100程度必要なときもある
-      this->eeComTask_->du()[6+9] = 50; // 実際は100程度必要なときもある
-      this->eeComTask_->du()[6+10] = 50; // 実際は100程度必要なときもある
-      this->eeComTask_->du()[6+11] = 50; // 実際は100程度必要なときもある
+      //this->eeComTask_->du()[6+7] = 20; // 実際は100程度必要なときもある
+      //this->eeComTask_->du()[6+8] = 50; // 実際は100程度必要なときもある
+      //this->eeComTask_->du()[6+9] = 50; // 実際は100程度必要なときもある
+      //this->eeComTask_->du()[6+10] = 50; // 実際は100程度必要なときもある
+      //this->eeComTask_->du()[6+11] = 50; // 実際は100程度必要なときもある
       // 腰
-      this->eeComTask_->du()[6+12] = 3; // 実際は100程度必要なときもある
-      this->eeComTask_->du()[6+13] = 3; // 実際は100程度必要なときもある
-      this->eeComTask_->du()[6+14] = 3; // 実際は100程度必要なときもある
+      //this->eeComTask_->du()[6+12] = 3; // 実際は100程度必要なときもある
+      //this->eeComTask_->du()[6+13] = 3; // 実際は100程度必要なときもある
+      //this->eeComTask_->du()[6+14] = 3; // 実際は100程度必要なときもある
       this->eeComTask_->wc() = cnoid::VectorX::Ones(6 + actRobotTqc->numJoints());
       this->eeComTask_->w() = cnoid::VectorX::Ones(6 + actRobotTqc->numJoints()) * 1e-6;
       this->eeComTask_->toSolve() = true;
@@ -551,7 +540,7 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
 	// jointPDTaskを作る
 	this->jointPDTask_->A() = Eigen::SparseMatrix<double, Eigen::RowMajor>(6 + actRobotTqc->numJoints(),6 + actRobotTqc->numJoints());
 	std::vector<Eigen::Triplet<double> > tripletList_A;
-	for (int i=0;i<6;i++){
+	for (int i=0;i<6 + actRobotTqc->numJoints();i++){
 	  tripletList_A.push_back(Eigen::Triplet<double>(i,i,1.0));
 	}
 	this->jointPDTask_->b() = cnoid::VectorXd::Zero(6 + actRobotTqc->numJoints());
@@ -572,8 +561,10 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
 	for (int i=0;i<6 + actRobotTqc->numJoints();i++){
 	  tripletList_C.push_back(Eigen::Triplet<double>(i,i,1.0));
 	}
-	this->jointPDTask_->dl() = - Eigen::VectorXd::Ones(6 + actRobotTqc->numJoints()) * 10;
-	this->jointPDTask_->du() = Eigen::VectorXd::Ones(6 + actRobotTqc->numJoints()) * 10;
+	this->jointPDTask_->A().setFromTriplets(tripletList_A.begin(), tripletList_A.end());
+        this->jointPDTask_->C().setFromTriplets(tripletList_C.begin(), tripletList_C.end());
+	this->jointPDTask_->dl() = - Eigen::VectorXd::Ones(6 + actRobotTqc->numJoints()) * this->ddq_limit;
+	this->jointPDTask_->du() = Eigen::VectorXd::Ones(6 + actRobotTqc->numJoints()) * this->ddq_limit;
 	this->jointPDTask_->wc() = cnoid::VectorX::Ones(6 + actRobotTqc->numJoints());
 	this->jointPDTask_->w() = cnoid::VectorXd::Ones(6 + actRobotTqc->numJoints()) * 1e-6;
 	this->jointPDTask_->toSolve() = true;

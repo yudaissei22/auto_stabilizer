@@ -30,6 +30,7 @@ public:
   cnoid::VectorXd refAngle_D; // generate frame.
   double ee_dv_limit = 20.0; // 分解加速度制御でのタスク空間でのフィードバック込みの加速度ノルム上限
   double ee_dw_limit = 20.0; // 分解加速度制御でのタスク空間でのフィードバック込みの角加速度ノルム上限
+  double ddq_limit = 50; // qpにいれる全関節共通のデフォルト関節角加速度リミット
 
   void init(const GaitParam& gaitParam, cnoid::BodyPtr& actRobotTqc){
     for(int i=0;i<NUM_LEGS;i++){
@@ -91,16 +92,16 @@ public:
     this->refAngle_K = cnoid::VectorXd::Zero(6 + gaitParam.actRobotTqc->numJoints());
     this->refAngle_D = cnoid::VectorXd::Zero(6 + gaitParam.actRobotTqc->numJoints());
     cnoid::Vector6 defaultRootK;
-    defaultRootK << 10, 10, 10, 100, 100, 100;
+    defaultRootK << 10, 10, 10, 10, 10, 10;
     this->refAngle_K.head<6>() = defaultRootK;
     for (int i=0;i<gaitParam.actRobotTqc->numJoints();i++){
-      this->refAngle_K[6+i] = 100;
+      this->refAngle_K[6+i] = 10;
     }
     cnoid::Vector6 defaultRootD;
     defaultRootD << 1, 1, 1, 10, 10, 10;
     this->refAngle_D.head<6>() = defaultRootD;
     for (int i=0;i<gaitParam.actRobotTqc->numJoints();i++){
-      this->refAngle_D[6+i] = 100;
+      this->refAngle_D[6+i] = 5;
     }
   }
 protected:
