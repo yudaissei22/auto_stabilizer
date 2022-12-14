@@ -113,7 +113,7 @@ public:
     this->refAngle_K = cnoid::VectorXd::Zero(6 + gaitParam.actRobotTqc->numJoints());
     this->refAngle_D = cnoid::VectorXd::Zero(6 + gaitParam.actRobotTqc->numJoints());
     cnoid::Vector6 defaultRootK;
-    defaultRootK << 10, 10, 10, 10, 10, 10;
+    defaultRootK << 10, 10, 10, 100, 10, 100;
     this->refAngle_K.head<6>() = defaultRootK;
     for (int i=0;i<gaitParam.actRobotTqc->numJoints();i++){
       this->refAngle_K[6+i] = 1;

@@ -363,10 +363,6 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
 	// ee_act
 	{
 	  for(int i=0;i<gaitParam.eeName.size();i++){
-	    if(((i < NUM_LEGS) && gaitParam.footstepNodesList[0].isSupportPhase[i]) /*支持脚*/) { // 加速度なので動かないようにしたいときはactual速度0になっていることが前提。早付き時はactualの速度を持ってしまっているので、加速度0にするとactualの速度を維持するようなトルクになり地面を蹴ってしまう
-	      ee_acc[i] = cnoid::Vector6::Zero();
-	      continue; // 加速させない
-	    }
 	    // ee_act_ref
 	    ee_acc[i].head<3>() = (gaitParam.abcEETargetPose[i].translation() - 2 * eeTargetPosed[i].translation() + eeTargetPosedd[i].translation()) / dt / dt;
 	    ee_acc[i].tail<3>() = (cnoid::rpyFromRot(gaitParam.abcEETargetPose[i].linear() * eeTargetPosed[i].linear().transpose()) - cnoid::rpyFromRot(eeTargetPosed[i].linear() * eeTargetPosedd[i].linear().transpose())) / dt / dt; // TODO
@@ -536,10 +532,10 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
 	}
 	this->jointPDTask_->b() = cnoid::VectorXd::Zero(6 + actRobotTqc->numJoints());
 	for (int i=0;i<3;i++){
-	  this->jointPDTask_->b()[i] = (gaitParam.genRobot->rootLink()->v()[i] - prev_rootd[i]) / dt + this->refAngle_K[i] * (gaitParam.genRobot->rootLink()->p()[i] - gaitParam.actRobot->rootLink()->p()[i]) + this->refAngle_D[i] * (gaitParam.genRobot->rootLink()->v()[i] - gaitParam.actRootVel.value()[i]);
+	  this->jointPDTask_->b()[i] = (gaitParam.refRobot->rootLink()->v()[i] - prev_rootd[i]) / dt + this->refAngle_K[i] * (gaitParam.refRobot->rootLink()->p()[i] - gaitParam.actRobot->rootLink()->p()[i]) + this->refAngle_D[i] * (gaitParam.refRobot->rootLink()->v()[i] - gaitParam.actRootVel.value()[i]);
 	}
 	for (int i=0;i<3;i++){
-	  this->jointPDTask_->b()[i+3] = (gaitParam.genRobot->rootLink()->w()[i] - prev_rootd[i+3]) / dt + this->refAngle_K[i+3] * cnoid::rpyFromRot(gaitParam.genRobot->rootLink()->R() * gaitParam.actRobot->rootLink()->R().transpose())[i]  + this->refAngle_D[i+3] * (gaitParam.genRobot->rootLink()->w()[i] - gaitParam.actRootVel.value()[i+3]);
+	  this->jointPDTask_->b()[i+3] = (gaitParam.refRobot->rootLink()->w()[i] - prev_rootd[i+3]) / dt + this->refAngle_K[i+3] * cnoid::rpyFromRot(gaitParam.refRobot->rootLink()->R() * gaitParam.actRobot->rootLink()->R().transpose())[i]  + this->refAngle_D[i+3] * (gaitParam.refRobot->rootLink()->w()[i] - gaitParam.actRootVel.value()[i+3]);
 	}
 	// refRobotに追従
 	for (int i=0;i<actRobotTqc->numJoints();i++){
@@ -695,8 +691,8 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
     eeTargetPosed[i] = gaitParam.abcEETargetPose[i];
   }
 
-  prev_rootd.head<3>() = gaitParam.genRobot->rootLink()->v();
-  prev_rootd.tail<3>() = gaitParam.genRobot->rootLink()->w();
+  prev_rootd.head<3>() = gaitParam.refRobot->rootLink()->v();
+  prev_rootd.tail<3>() = gaitParam.refRobot->rootLink()->w();
   
   return true;
 }
