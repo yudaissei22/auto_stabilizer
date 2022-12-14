@@ -33,7 +33,14 @@ public:
   double defaultDdqLimit = 50; // qpにいれる全関節共通のデフォルト関節角加速度リミット. 特にrootについてはこれを使う
   std::vector<double> ddq_limit; // qpに入れる関節角加速度リミット. 電流リミット*トルク定数*ギア比= トルクリミットを関節イナーシャで割った値. 要素数はnumJointsなのでrootを含まない. 大きすぎて(低くて400m/s^2)実際は機能していない
   std::vector<double> torque_limit; // u に入れる関節トルクリミット. 電流リミット*トルク定数*ギア比
-
+  std::vector<double> torque_ratcheting_limit = {220, 450, 1000, 1000, 220, 220, // 右足
+                                                 220, 450, 1000, 1000, 220, 220, // 左足
+                                                 1000, 1000, 220, 220, 220, // 胴体
+                                                 220, 220, 220, 220, 220, 220, 220, 220, // 右腕
+                                                 220, 220, 220, 220, 220, 220, 220, 220, // 左腕
+                                                 10, 10, 10, 10, 10, 10, // 右指
+                                                 10, 10, 10, 10, 10, 10, // 左指
+                                                 };
   void init(const GaitParam& gaitParam, cnoid::BodyPtr& actRobotTqc){
     for(int i=0;i<NUM_LEGS;i++){
       cnoid::JointPath jointPath(actRobotTqc->rootLink(), actRobotTqc->link(gaitParam.eeParentLink[i]));
@@ -78,20 +85,20 @@ public:
       double torqueConst = gaitParam.actRobotTqc->joint(i)->info<double>("torqueConst");
       cnoid::Matrix3 Inertia = gaitParam.actRobotTqc->joint(i)->I();
       cnoid::Vector3 axis = gaitParam.actRobotTqc->joint(i)->jointAxis();
-      this->torque_limit[i] = climit * gearRatio * torqueConst;
+      this->torque_limit[i] = std::max(climit * gearRatio * torqueConst, this->torque_ratcheting_limit[i]);
       this->ddq_limit[i] = climit * gearRatio * torqueConst / (Inertia * axis).norm();
     }
     for(int i=0;i<gaitParam.eeName.size();i++){
       cnoid::Vector6 defaultEED;
       if(i<NUM_LEGS){
-	defaultEED << 10, 10, 5, 10, 10, 10;
+	defaultEED << 30, 30, 5, 20, 20, 20;
       }else{
 	defaultEED << 10, 10, 10, 10, 10, 10;
       }
       this->ee_D.push_back(defaultEED);
       cnoid::Vector6 defaultEEK;
       if(i<NUM_LEGS){
-	defaultEEK << 50, 50, 20, 20, 20, 20;
+	defaultEEK << 200, 200, 20, 100, 100, 100;
       }else{
 	defaultEEK << 50, 50, 50, 20, 20, 20;
       }
@@ -110,14 +117,14 @@ public:
     this->refAngle_K.head<6>() = defaultRootK;
     for (int i=0;i<gaitParam.actRobotTqc->numJoints();i++){
       this->refAngle_K[6+i] = 1;
-      if((i==12) || (i==13) || (i==14)) this->refAngle_K[6+i] = 50; // 腰roll pitch yaw
+      if((i==12) || (i==13) || (i==14)) this->refAngle_K[6+i] = 25; // 腰roll pitch yaw
     }
     cnoid::Vector6 defaultRootD;
     defaultRootD << 1, 1, 1, 10, 10, 10;
     this->refAngle_D.head<6>() = defaultRootD;
     for (int i=0;i<gaitParam.actRobotTqc->numJoints();i++){
       this->refAngle_D[6+i] = 1;
-      if((i==12) || (i==13) || (i==14)) this->refAngle_D[6+i] = 10; // 腰roll pitch yaw
+      if((i==12) || (i==13) || (i==14)) this->refAngle_D[6+i] = 5; // 腰roll pitch yaw
     }
   }
 protected:
