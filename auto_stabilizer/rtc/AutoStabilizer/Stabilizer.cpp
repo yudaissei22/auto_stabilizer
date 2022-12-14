@@ -363,8 +363,7 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
 	// ee_act
 	{
 	  for(int i=0;i<gaitParam.eeName.size();i++){
-	    if(((i < NUM_LEGS) && gaitParam.footstepNodesList[0].isSupportPhase[i]) || // 支持脚
-	       ((i < NUM_LEGS) && gaitParam.footstepNodesList[0].stopCurrentPosition[i])) { // 早付き
+	    if(((i < NUM_LEGS) && gaitParam.footstepNodesList[0].isSupportPhase[i]) /*支持脚*/) { // 加速度なので動かないようにしたいときはactual速度0になっていることが前提。早付き時はactualの速度を持ってしまっているので、加速度0にするとactualの速度を維持するようなトルクになり地面を蹴ってしまう
 	      ee_acc[i] = cnoid::Vector6::Zero();
 	      continue; // 加速させない
 	    }

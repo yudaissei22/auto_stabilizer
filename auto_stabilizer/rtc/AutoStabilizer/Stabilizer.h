@@ -109,13 +109,13 @@ public:
     defaultRootK << 10, 10, 10, 10, 10, 10;
     this->refAngle_K.head<6>() = defaultRootK;
     for (int i=0;i<gaitParam.actRobotTqc->numJoints();i++){
-      this->refAngle_K[6+i] = 10;
+      this->refAngle_K[6+i] = 1;
     }
     cnoid::Vector6 defaultRootD;
     defaultRootD << 1, 1, 1, 10, 10, 10;
     this->refAngle_D.head<6>() = defaultRootD;
     for (int i=0;i<gaitParam.actRobotTqc->numJoints();i++){
-      this->refAngle_D[6+i] = 5;
+      this->refAngle_D[6+i] = 1;
     }
   }
 protected:
