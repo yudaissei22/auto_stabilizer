@@ -30,7 +30,9 @@ public:
   cnoid::VectorXd refAngle_D; // generate frame.
   double ee_dv_limit = 20.0; // 分解加速度制御でのタスク空間でのフィードバック込みの加速度ノルム上限
   double ee_dw_limit = 20.0; // 分解加速度制御でのタスク空間でのフィードバック込みの角加速度ノルム上限
-  double ddq_limit = 50; // qpにいれる全関節共通のデフォルト関節角加速度リミット
+  double defaultDdqLimit = 50; // qpにいれる全関節共通のデフォルト関節角加速度リミット. 特にrootについてはこれを使う
+  std::vector<double> ddq_limit; // qpに入れる関節角加速度リミット. 電流リミット*トルク定数*ギア比= トルクリミットを関節イナーシャで割った値. 要素数はnumJointsなのでrootを含まない. 大きすぎて(低くて400m/s^2)実際は機能していない
+  std::vector<double> torque_limit; // u に入れる関節トルクリミット. 電流リミット*トルク定数*ギア比
 
   void init(const GaitParam& gaitParam, cnoid::BodyPtr& actRobotTqc){
     for(int i=0;i<NUM_LEGS;i++){
@@ -67,17 +69,29 @@ public:
         swingDgain[i].resize(jointPath.numJoints(), 100.0);
       }
     }
+    this->ddq_limit.resize(gaitParam.actRobotTqc->numJoints());
+    this->torque_limit.resize(gaitParam.actRobotTqc->numJoints());
+    for (int i=0;i<gaitParam.actRobotTqc->numJoints();i++){
+      double climit = gaitParam.actRobotTqc->joint(i)->info<double>("climit");
+      if(climit >= 200) climit = 10; // 大きすぎるor設定されていないので適当
+      double gearRatio = gaitParam.actRobotTqc->joint(i)->info<double>("gearRatio");
+      double torqueConst = gaitParam.actRobotTqc->joint(i)->info<double>("torqueConst");
+      cnoid::Matrix3 Inertia = gaitParam.actRobotTqc->joint(i)->I();
+      cnoid::Vector3 axis = gaitParam.actRobotTqc->joint(i)->jointAxis();
+      this->torque_limit[i] = climit * gearRatio * torqueConst;
+      this->ddq_limit[i] = climit * gearRatio * torqueConst / (Inertia * axis).norm();
+    }
     for(int i=0;i<gaitParam.eeName.size();i++){
       cnoid::Vector6 defaultEED;
       if(i<NUM_LEGS){
-	defaultEED << 50, 50, 50, 50, 50, 50;
+	defaultEED << 10, 10, 5, 10, 10, 10;
       }else{
 	defaultEED << 10, 10, 10, 10, 10, 10;
       }
       this->ee_D.push_back(defaultEED);
       cnoid::Vector6 defaultEEK;
       if(i<NUM_LEGS){
-	defaultEEK << 200, 200, 50, 50, 50, 20;
+	defaultEEK << 50, 50, 20, 20, 20, 20;
       }else{
 	defaultEEK << 50, 50, 50, 20, 20, 20;
       }
