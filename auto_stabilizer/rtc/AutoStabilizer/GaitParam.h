@@ -73,6 +73,7 @@ public:
   cpp_filters::FirstOrderLowPassFilter<cnoid::Vector6> actRootVel = cpp_filters::FirstOrderLowPassFilter<cnoid::Vector6>(3.5, cnoid::Vector6::Zero()); // generate frame. 現在のroot速度. actCogVelと同程度
   std::vector<cnoid::Position> actEEPose; // 要素数と順序はeeNameと同じ.generate frame
   std::vector<cnoid::Vector6> actEEWrench; // 要素数と順序はeeNameと同じ.generate frame. EndEffector origin. ロボットが受ける力
+  std::vector<bool> prevOriginLeg = std::vector<bool>{true, true}; // 要素数2.  rleg: 0. lleg: 1. 一つ前の周期でweightが1であったかどうか
 
   // ExternalForceHandler
   double omega = std::sqrt(g / refdz); // DCMの計算に用いる. 0より大きい

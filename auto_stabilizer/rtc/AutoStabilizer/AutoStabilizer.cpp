@@ -577,7 +577,7 @@ bool AutoStabilizer::execAutoStabilizer(const AutoStabilizer::ControlMode& mode,
 
   // FootOrigin座標系を用いてactRobotRawをgenerate frameに投影しactRobotとする
   actToGenFrameConverter.convertFrame(gaitParam, dt,
-                                      gaitParam.actRobot, gaitParam.actEEPose, gaitParam.actEEWrench, gaitParam.actCogVel, gaitParam.actRootVel);
+                                      gaitParam.actRobot, gaitParam.actEEPose, gaitParam.actEEWrench, gaitParam.actCogVel, gaitParam.actRootVel, gaitParam.prevOriginLeg);
 
   // 目標外力に応じてオフセットを計算する
   externalForceHandler.handleExternalForce(gaitParam, mode.isSTRunning(), dt,
