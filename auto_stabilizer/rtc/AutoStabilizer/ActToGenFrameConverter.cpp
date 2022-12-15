@@ -5,7 +5,7 @@
 #include <cnoid/EigenUtil>
 
 bool ActToGenFrameConverter::convertFrame(const GaitParam& gaitParam, double dt,// input
-                                          cnoid::BodyPtr& actRobot, std::vector<cnoid::Position>& o_actEEPose, std::vector<cnoid::Vector6>& o_actEEWrench, cpp_filters::FirstOrderLowPassFilter<cnoid::Vector3>& o_actCogVel, cpp_filters::FirstOrderLowPassFilter<cnoid::Vector6>& o_actRootVel) const {
+                                          cnoid::BodyPtr& actRobot, std::vector<cnoid::Position>& o_actEEPose, std::vector<cnoid::Vector6>& o_actEEWrench, cpp_filters::FirstOrderLowPassFilter<cnoid::Vector3>& o_actCogVel, cpp_filters::FirstOrderLowPassFilter<cnoid::Vector6>& o_actRootVel, std::vector<bool>& prevOriginLeg) const {
 
   cnoid::Vector3 actCogPrev = actRobot->centerOfMass();
   cnoid::Position actRootPrev = actRobot->rootLink()->T();
@@ -20,8 +20,15 @@ bool ActToGenFrameConverter::convertFrame(const GaitParam& gaitParam, double dt,
     for(int i=0;i<actForceSensors.size();i++){
       actOriginForceSensors[i]->F() = actForceSensors[i]->F();
     }
-    double rlegweight = gaitParam.footstepNodesList[0].isSupportPhase[RLEG]? 1.0 : 0.0;
-    double llegweight = gaitParam.footstepNodesList[0].isSupportPhase[LLEG]? 1.0 : 0.0;
+    if(prevOriginLeg[RLEG] && !gaitParam.footstepNodesList[0].isSupportPhase[RLEG]) { // 右足が遊脚になった
+      prevOriginLeg[RLEG] = false;
+      prevOriginLeg[LLEG] = true;
+    } else if(prevOriginLeg[LLEG] && !gaitParam.footstepNodesList[0].isSupportPhase[LLEG]) { // 左足が遊脚になった
+      prevOriginLeg[RLEG] = true;
+      prevOriginLeg[LLEG] = false;
+    }
+    double rlegweight = prevOriginLeg[RLEG]? 1.0 : 0.0;
+    double llegweight = prevOriginLeg[LLEG]? 1.0 : 0.0;
     if(!gaitParam.footstepNodesList[0].isSupportPhase[RLEG] && !gaitParam.footstepNodesList[0].isSupportPhase[LLEG]) rlegweight = llegweight = 1.0;
     cnoid::Position actrleg = actRobot->link(gaitParam.eeParentLink[RLEG])->T()*gaitParam.eeLocalT[RLEG];
     cnoid::Position actlleg = actRobot->link(gaitParam.eeParentLink[LLEG])->T()*gaitParam.eeLocalT[LLEG];

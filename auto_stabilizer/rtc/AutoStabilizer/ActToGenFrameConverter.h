@@ -30,7 +30,7 @@ public:
 
   // actual frameで表現されたactRobotRawをgenerate frameに投影しactRobotとし、各種actual値をgenerate frameに変換する
   bool convertFrame(const GaitParam& gaitParam, double dt, // input
-                    cnoid::BodyPtr& actRobot, std::vector<cnoid::Position>& o_actEEPose, std::vector<cnoid::Vector6>& o_actEEWrench, cpp_filters::FirstOrderLowPassFilter<cnoid::Vector3>& o_actCogVel, cpp_filters::FirstOrderLowPassFilter<cnoid::Vector6>& o_actRootVel) const; // output
+                    cnoid::BodyPtr& actRobot, std::vector<cnoid::Position>& o_actEEPose, std::vector<cnoid::Vector6>& o_actEEWrench, cpp_filters::FirstOrderLowPassFilter<cnoid::Vector3>& o_actCogVel, cpp_filters::FirstOrderLowPassFilter<cnoid::Vector6>& o_actRootVel, std::vector<bool>& prevOriginLeg) const; // output
 };
 
 #endif
