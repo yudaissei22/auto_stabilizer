@@ -370,7 +370,8 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
 	    cnoid::Matrix3 eeR = gaitParam.actEEPose[i].linear();
 	    cnoid::Vector6 eePoseDiffLocal; // endEfector frame
 	    eePoseDiffLocal.head<3>() = eeR.transpose() * (gaitParam.abcEETargetPose[i].translation() - gaitParam.actEEPose[i].translation());
-	    eePoseDiffLocal.tail<3>() = cnoid::rpyFromRot(gaitParam.actEEPose[i].linear().transpose()*gaitParam.abcEETargetPose[i].linear());
+	    cnoid::AngleAxis angleAxis = cnoid::AngleAxis(gaitParam.actEEPose[i].linear().transpose()*gaitParam.abcEETargetPose[i].linear());
+	    eePoseDiffLocal.tail<3>() = angleAxis.angle()*angleAxis.axis();
 	    cnoid::Vector6 eeVelDiffLocal = (eePoseDiffLocal - eePoseDiff_prev[i]) / dt;
 	    cnoid::Vector6 eePoseDiffGainLocal;
 	    cnoid::Vector6 eeVelDiffGainLocal;
@@ -488,6 +489,7 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
 	  actRobotTqc->calcCenterOfMass();
 	  cnoid::Vector6 virtualWrench = cnoid::calcInverseDynamics(actRobotTqc->rootLink());
 	  dJdq = virtualWrench.head<3>() / gaitParam.actRobot->mass();
+	  dJdq += virtualWrench.tail<3>().cross(actRobotTqc->centerOfMass()) / gaitParam.actRobot->mass();
 	}
 
 	{ // comTaskを作る
