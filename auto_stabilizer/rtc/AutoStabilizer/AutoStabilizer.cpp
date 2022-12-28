@@ -670,11 +670,6 @@ bool AutoStabilizer::writeOutPortData(AutoStabilizer::Ports& ports, const AutoSt
         if(std::isfinite(value)) ports.m_q_.data[i] = value;
         else std::cerr << "m_q is not finite!" << std::endl;
       }
-      if(i >= gaitParam.genRobot->numJoints() - 12) {
-        double value = gaitParam.refRobotRaw->joint(i)->q();
-        if(std::isfinite(value)) ports.m_q_.data[i] = value;
-        else std::cerr << "m_q is not finite!" << std::endl;
-      }
     }
     ports.m_qOut_.write();
   }
@@ -683,7 +678,7 @@ bool AutoStabilizer::writeOutPortData(AutoStabilizer::Ports& ports, const AutoSt
     // tau
     ports.m_genTau_.tm = ports.m_qRef_.tm;
     ports.m_genTau_.data.length(gaitParam.actRobotTqc->numJoints());
-    for(int i=0;i<gaitParam.actRobotTqc->numJoints() - 12;i++){
+    for(int i=0;i<gaitParam.actRobotTqc->numJoints();i++){
       if(mode.now() == AutoStabilizer::ControlMode::MODE_IDLE || !gaitParam.jointControllable[i]){
         double value = gaitParam.refRobotRaw->joint(i)->u();
         if(std::isfinite(value)) ports.m_genTau_.data[i] = value;

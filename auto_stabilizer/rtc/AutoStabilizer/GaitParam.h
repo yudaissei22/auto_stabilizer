@@ -180,6 +180,9 @@ public:
     maxTorque.resize(robot->numJoints(), std::numeric_limits<double>::max());
     jointLimitTables.resize(robot->numJoints());
     jointControllable.resize(robot->numJoints(), true);
+    for (int i=robot->numJoints()-12;i<robot->numJoints(); i++){ // 指
+      jointControllable[i] = false;
+    }
     prev_q = Eigen::VectorXd::Zero(robot->numJoints());
     prev_dq = Eigen::VectorXd::Zero(robot->numJoints());
     refRobotRaw = robot->clone();
