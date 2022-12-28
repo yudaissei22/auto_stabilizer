@@ -536,8 +536,10 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
 	for (int i=0;i<3;i++){
 	  this->jointPDTask_->b()[i] = (gaitParam.refRobot->rootLink()->v()[i] - prev_rootd[i]) / dt + this->refAngle_K[i] * (gaitParam.refRobot->rootLink()->p()[i] - gaitParam.actRobot->rootLink()->p()[i]) + this->refAngle_D[i] * (gaitParam.refRobot->rootLink()->v()[i] - gaitParam.actRootVel.value()[i]);
 	}
+	cnoid::AngleAxis rootAngleAxis = cnoid::AngleAxis(gaitParam.refRobot->rootLink()->R() * gaitParam.actRobot->rootLink()->R().transpose());
+	cnoid::Vector3 rootRpyDiff = rootAngleAxis.angle()*rootAngleAxis.axis();
 	for (int i=0;i<3;i++){
-	  this->jointPDTask_->b()[i+3] = (gaitParam.refRobot->rootLink()->w()[i] - prev_rootd[i+3]) / dt + this->refAngle_K[i+3] * cnoid::rpyFromRot(gaitParam.refRobot->rootLink()->R() * gaitParam.actRobot->rootLink()->R().transpose())[i]  + this->refAngle_D[i+3] * (gaitParam.refRobot->rootLink()->w()[i] - gaitParam.actRootVel.value()[i+3]);
+	  this->jointPDTask_->b()[i+3] = (gaitParam.refRobot->rootLink()->w()[i] - prev_rootd[i+3]) / dt + this->refAngle_K[i+3] * rootRpyDiff[i]  + this->refAngle_D[i+3] * (gaitParam.refRobot->rootLink()->w()[i] - gaitParam.actRootVel.value()[i+3]);
 	}
 	// refRobotに追従
 	for (int i=0;i<actRobotTqc->numJoints();i++){
