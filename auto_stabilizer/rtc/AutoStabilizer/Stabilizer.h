@@ -113,14 +113,14 @@ public:
     this->refAngle_K = cnoid::VectorXd::Zero(6 + gaitParam.actRobotTqc->numJoints());
     this->refAngle_D = cnoid::VectorXd::Zero(6 + gaitParam.actRobotTqc->numJoints());
     cnoid::Vector6 defaultRootK;
-    defaultRootK << 10, 10, 10, 100, 100, 100;
+    defaultRootK << 0, 0, 0, 100, 100, 100;
     this->refAngle_K.head<6>() = defaultRootK;
     for (int i=0;i<gaitParam.actRobotTqc->numJoints();i++){
       this->refAngle_K[6+i] = 1;
       if((i==12) || (i==13) || (i==14)) this->refAngle_K[6+i] = 100; // 腰roll pitch yaw
     }
     cnoid::Vector6 defaultRootD;
-    defaultRootD << 1, 1, 1, 10, 10, 10;
+    defaultRootD << 0, 0, 0, 10, 10, 10;
     this->refAngle_D.head<6>() = defaultRootD;
     for (int i=0;i<gaitParam.actRobotTqc->numJoints();i++){
       this->refAngle_D[6+i] = 1;

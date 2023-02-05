@@ -892,8 +892,8 @@ bool AutoStabilizer::writeOutPortData(AutoStabilizer::Ports& ports, const AutoSt
     for (int i=0; i<3; i++) {
       ports.m_genCoords_.data[0+i] = gaitParam.genCoords[RLEG].value().translation()[i];
       ports.m_genCoords_.data[3+i] = gaitParam.genCoords[LLEG].value().translation()[i];
-      ports.m_genCoords_.data[6+i] = gaitParam.genCoords[RLEG].getGoal().translation()[i];
-      ports.m_genCoords_.data[9+i] = gaitParam.genCoords[LLEG].getGoal().translation()[i];
+      ports.m_genCoords_.data[6+i] = gaitParam.icEETargetPose[2].translation()[i];
+      ports.m_genCoords_.data[9+i] = gaitParam.icEETargetPose[3].translation()[i];
     }
     ports.m_genCoordsOut_.write();
     {
