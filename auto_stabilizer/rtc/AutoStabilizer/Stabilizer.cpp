@@ -496,11 +496,9 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
 	  cnoid::MatrixXd CMJ = cnoid::MatrixXd::Zero(3,6 + actRobotTqc->numJoints());
 	  cnoid::calcCMJacobian(actRobotTqc,nullptr,CMJ); //仕様でrootは後ろにつくので注意
 	  for (int i=0;i<actRobotTqc->numJoints();i++) {
-          if(i<12) {
               for(int j=0;j<3;j++) {
                   eeComTripletList_A.push_back(Eigen::Triplet<double>(6 * gaitParam.eeName.size() + j,6+i,CMJ(j,i)));
               }
-          }
 	  }
 	  for (int i=0;i<6;i++) {
 	    for(int j=0;j<3;j++) {
