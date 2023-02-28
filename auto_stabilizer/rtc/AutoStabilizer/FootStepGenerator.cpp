@@ -831,43 +831,7 @@ void FootStepGenerator::checkEarlyTouchDown(std::vector<GaitParam::FootStepNodes
       }
     }
 
-    //両足支持期延長
-    if((footstepNodesList[0].isSupportPhase[RLEG] && footstepNodesList[0].isSupportPhase[LLEG]) && footstepNodesList[0].remainTime <= dt) { //現在両足支持期、remainTime=0
-      std::vector<std::vector<cnoid::Vector3> > safeSingleLegVertices = std::vector<std::vector<cnoid::Vector3> >{std::vector<cnoid::Vector3>(), std::vector<cnoid::Vector3>()};
-      std::vector<cnoid::Vector3> safeDoubleLegVertices;
-      std::vector<std::vector<cnoid::Vector3> > safeSingleLegHull = std::vector<std::vector<cnoid::Vector3> >{std::vector<cnoid::Vector3>(), std::vector<cnoid::Vector3>()};
-      std::vector<cnoid::Vector3> safeDoubleLegHull;
-      for(int i=0; i<NUM_LEGS; i++) {//i=2を仮定
-        for(int j=0; j<this->safeLegHull[i].size(); j++){
-          safeSingleLegVertices[i].push_back(gaitParam.actEEPose[i] * this->safeLegHull[i][j]); // generate frame
-          safeDoubleLegVertices.push_back(gaitParam.actEEPose[i] * this->safeLegHull[i][j]); // generate frame
-        }
-        safeSingleLegHull[i] = mathutil::calcConvexHull(safeSingleLegVertices[i]); // generate frame. Z成分はてきとう
-      }
-      safeDoubleLegHull = mathutil::calcConvexHull(safeDoubleLegVertices); // generate frame. Z成分はてきとう
-      cnoid::Vector3 actDCM = gaitParam.actCog + gaitParam.actCogVel.value() / gaitParam.omega; // generate frame
-      cnoid::Vector3 genDCM = gaitParam.genCog + gaitParam.genCogVel / gaitParam.omega;
 
-      if(footstepNodesList[1].isSupportPhase[RLEG] && !footstepNodesList[1].isSupportPhase[LLEG] && //次が右足支持期
-	 gaitParam.elapsedTime <= 10.0 && //最長時間
-	 mathutil::isInsideHull(actDCM, safeDoubleLegHull) && // actDCMが両足支持凸包内
-	 !mathutil::isInsideHull(actDCM, safeSingleLegHull[RLEG])){ // actDCMが右足支持凸包外
-        footstepNodesList[0].remainTime += dt;
-        doubleSupportZmpOffset += 0.01 * (genDCM - actDCM);
-        doubleSupportZmpOffset[2] = 0;
-      } else if(!footstepNodesList[1].isSupportPhase[RLEG] && footstepNodesList[1].isSupportPhase[LLEG] && //次が左足支持期
-		gaitParam.elapsedTime <= 10.0 && //最長時間
-		mathutil::isInsideHull(actDCM, safeDoubleLegHull) && // actDCMが両足支持凸包内
-		!mathutil::isInsideHull(actDCM, safeSingleLegHull[LLEG])){ // actDCMが右足支持凸包外
-        footstepNodesList[0].remainTime += dt;
-        doubleSupportZmpOffset += 0.01 * (genDCM - actDCM);
-        doubleSupportZmpOffset[2] = 0;
-      } else {
-        doubleSupportZmpOffset = cnoid::Vector3::Zero();
-      }
-    } else {
-      doubleSupportZmpOffset = cnoid::Vector3::Zero();
-    }
   }
 }
 
