@@ -621,10 +621,10 @@ bool AutoStabilizer::execAutoStabilizer(const AutoStabilizer::ControlMode& mode,
   stabilizer.execStabilizer(gaitParam, dt, mode.isSTRunning(),
                             gaitParam.stOffsetRootRpy, gaitParam.stTargetRootPose);
 
-  // FullbodyIKSolver
+  //  FullbodyIKSolver
   if(!mode.isSTRunning()) {
     fullbodyIKSolver.solveFullbodyIK(dt, gaitParam,// input
-				     gaitParam.genRobot); // output
+  				     gaitParam.genRobot); // output
   }
 
   stabilizer.calcResolvedAccelationControl(gaitParam, dt, mode.isSTRunning(), gaitParam.actRobotTqc,

@@ -93,14 +93,14 @@ public:
       if(i<NUM_LEGS){
 	defaultEED << 30, 30, 30, 10, 10, 10;
       }else{
-	defaultEED << 1, 1, 1, 10, 10, 10;
+	defaultEED << 20, 20, 20, 10, 10, 10;
       }
       this->ee_D.push_back(defaultEED);
       cnoid::Vector6 defaultEEK;
       if(i<NUM_LEGS){
 	defaultEEK << 200, 200, 200, 50, 50, 50;
       }else{
-	defaultEEK << 1, 1, 1, 20, 20, 20;
+	defaultEEK << 10, 10, 10, 20, 20, 20;
       }
       this->ee_K.push_back(defaultEEK);
     }
