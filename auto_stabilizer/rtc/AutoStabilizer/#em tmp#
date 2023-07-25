@@ -1,0 +1,10 @@
+dq_act_now = (q_act_now - q_act_before) / dt
+
+if q_act_before == 0
+dq_act_now == q_act_now/dt
+
+
+ddq_act_now = (dq_act_now - dq_act_before) / dt
+
+if dq_act_before == 0
+ddq_act_now = ad_act_now/dt

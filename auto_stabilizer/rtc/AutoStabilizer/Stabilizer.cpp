@@ -300,7 +300,7 @@ bool Stabilizer::calcWrench(const GaitParam& gaitParam, const cnoid::Vector3& tg
 					J); // output
       cnoid::VectorX tau = - J.transpose() * tgtEEWrench[i];
       for(int j=0;j<jointPath.numJoints();j++){
-	jointPath.joint(j)->u() += tau[j];  //このwrenchのが接触力を計算し代入している。よって、ここをコメントアウトすればよき。
+	//jointPath.joint(j)->u() += tau[j];  //このwrenchのが接触力を計算し代入している。よって、ここをコメントアウトすればよき。
       }
     }
   }
@@ -354,8 +354,8 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
       actRobotTqc->rootLink()->dw() = cnoid::Vector3::Zero();
 
       // define Gain Kv and Kp
-      double Kv = 2.25*1;
-      double Kp = 1.25*1;
+      double Kv = 1;
+      double Kp = 1;
 
       // initalization and need for diff to remember the before information.
       static cnoid::VectorX q_act_before = cnoid::VectorXd::Zero(actRobotTqc->numJoints());
@@ -373,45 +373,40 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
       static cnoid::VectorX dq = cnoid::VectorXd::Zero(actRobotTqc->numJoints());
       static cnoid::VectorX ddq = cnoid::VectorXd::Zero(actRobotTqc->numJoints());
 
-      
+      static cnoid::VectorX test = cnoid::VectorXd::Zero(actRobotTqc->numJoints());
+            
       //substitute the differential values
       for(int i=0;i<actRobotTqc->numJoints();i++){
 	q_act_now[i] = gaitParam.actRobot->joint(i)->q();
 	q_ref_now[i] = gaitParam.refRobot->joint(i)->q();
       }
       
-	// dq_act_now = (q_act_now - q_act_before) / dt;
-        // dq_ref_now = (q_ref_now - q_ref_before) / dt;
-        // ddq_act_now = (dq_act_now - dq_act_before) / dt;
-        // ddq_ref_now = (dq_ref_now - dq_ref_before) / dt;
-      // agent-systemに間に合わせる用
+      dq_act_now = (q_act_now - q_act_before) / dt;
+      dq_ref_now = (q_ref_now - q_ref_before) / dt;
+      ddq_act_now = (dq_act_now - dq_act_before) / dt;
+      ddq_ref_now = (dq_ref_now - dq_ref_before) / dt;
 
-      //if(((q_act_now - q_act_before) == q_act_now) || ((dq_act_now - dq_act_before) == dq_act_now) || ((ddq_act_now - ddq_act_before) == ddq_act_now)){
 
-      // dq = dq_act_now - dq_act_before;
-      // ddq = ddq_act_now - ddq_act_before;
-	
-      if(dq_act_now - dq_act_before == dq_act_now || ddq_act_now - ddq_act_before == ddq_act_now){
+      // beforeの値が0でとても大きな値が入ってしまう。それを弾くために、角速度・角加速度を0にしたforループを数回回し、その後別のループに入るようにした。正直邪道だと思う
+      // beforeの値が0のみzeroのforループを回しても、値の更新で大きい値が入ってしまうため実行してもぶっとぶ？
+      static int aaa = 0;
+      //      q_act_before == test || dq_act_before == test || ddq_act_before == test
+      if(aaa <= 700 ){
         for(int i=0;i<actRobotTqc->numJoints();i++){
            actRobotTqc->joint(i)->q() = gaitParam.actRobot->joint(i)->q();
            actRobotTqc->joint(i)->dq() = 0.0;
            actRobotTqc->joint(i)->ddq() = 0.0; //refRobotがdqをもってる?//
-	   // std::cerr << "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" << std::endl;
-	   // std::cerr << "" << dq;
-	   // std::cerr << "" << ddq;
+	   // std::cerr << j << "角速度と角加速度は全部0" << std::endl;
+           std::cerr << aaa << "角速度と角加速度は全部0" << std::endl;
+	   aaa++;
 	}
-      }else{
-        // ここで微分する。	
-	dq_act_now = (q_act_now - q_act_before) / dt;
-        dq_ref_now = (q_ref_now - q_ref_before) / dt;
-        ddq_act_now = (dq_act_now - dq_act_before) / dt;
-        ddq_ref_now = (dq_ref_now - dq_ref_before) / dt;
-	
+	// q_act_before != test || dq_act_before != test || ddq_act_before != test
+      }else if(aaa > 700){	
         for(int i=0;i<actRobotTqc->numJoints();i++){
 	  actRobotTqc->joint(i)->q() = gaitParam.actRobot->joint(i)->q();
 	  actRobotTqc->joint(i)->dq() = dq_act_now[i];
 	  actRobotTqc->joint(i)->ddq() = ddq_ref_now[i] + Kv * (dq_ref_now[i] - dq_act_now[i]) + Kp * (q_ref_now[i] - q_act_now[i]); //refRobotがdqをもってる?//
-	  std::cerr << "good" << std::endl;
+	  std::cerr << aaa << "計算トルク法の使用中" << std::endl;
         }
       }
 
@@ -430,6 +425,7 @@ bool Stabilizer::calcTorque(double dt, const GaitParam& gaitParam, bool useActSt
       for(int i=0;i<actRobotTqc->numJoints();i++){
 	tau_yuda[i] = actRobotTqc->joint(i)->u();
 	actRobotTqc->joint(i)->u() = 0.0;
+	std::cerr << "計算完了！！！！！！！！！！！！！！！！！！！！！！！！！！！！！" << std::endl;
       }
       
       // update the variavles for differential. time pass...
